@@ -25,5 +25,115 @@
 
 import argparse
 import logging
+import sys
 
 import requests
+
+import archimedes
+
+# Logging formats
+ARCHIMEDES_LOG_FORMAT = "[%(asctime)s] - %(message)s"
+ARCHIMEDES_DEBUG_LOG_FORMAT = "[%(asctime)s - %(name)s - %(levelname)s] - %(message)s"
+ARCHIMEDES_USAGE_MSG = "usage: archimedes [options]"
+ARCHIMEDES_DESC_MSG = "Import/Export a Kibana-based dashboard"
+ARCHIMEDES_VERSION_MSG = \
+"""%(prog)s """  + archimedes.__version__
+
+
+KIBITER_URL = "http://localhost:5601"
+
+
+def get_params_parser_create_dash():
+    """Parse command line arguments"""
+
+    parser = argparse.ArgumentParser(usage=ARCHIMEDES_USAGE_MSG,
+                                     description=ARCHIMEDES_DESC_MSG)
+
+    parser.add_argument("--url", help="Kibana URL")
+    parser.add_argument("--dashboard", help="Kibana dashboard id to export")
+    parser.add_argument("--split-index-patterns", action='store_true',
+                        help="Kibana index patterns are exported in different files")
+    parser.add_argument("--export", dest="export_file", help="file with the dashboard exported")
+
+    parser.add_argument("--import", dest="import_file", help="file with the dashboard/index pattern to be imported")
+    parser.add_argument("--strict", action="store_true", help="check release date and only import newer panels")
+    parser.add_argument("--kibana", dest="kibana_index", default=".kibana", help="Kibana index name (.kibana default)")
+    parser.add_argument("--list", action='store_true', help="list available dashboards")
+    parser.add_argument('-g', '--debug', dest='debug', action='store_true')
+    parser.add_argument("--data-sources", nargs='+', dest="data_sources", help="Data sources to be included")
+    parser.add_argument("--add-vis-studies", dest="add_vis_studies",
+                        action='store_true', help="Include visualizations for studies")
+    parser.add_argument("--kibana-url", dest="kibana_url", default="http://localhost:5601",
+                        help="Kibana URL (http://localhost:5601 by default)")
+
+    return parser
+
+
+def parse_args():
+    """Parse command line arguments"""
+
+    parser = argparse.ArgumentParser(usage=ARCHIMEDES_USAGE_MSG,
+                                     description=ARCHIMEDES_DESC_MSG,
+                                     add_help=False)
+
+    parser.add_argument('-h', '--help', action='help',
+                        help=argparse.SUPPRESS)
+    parser.add_argument('-v', '--version', action='version',
+                        version=ARCHIMEDES_VERSION_MSG,
+                        help=argparse.SUPPRESS)
+    parser.add_argument('-g', '--debug', dest='debug',
+                        action='store_true',
+                        help=argparse.SUPPRESS)
+
+    parser.add_argument("--url", dest="base_url", default=KIBITER_URL,
+                        help="Kibana URL")
+    parser.add_argument("--export", dest="export", action='store_true',
+                        help="Export da")
+    parser.add_argument('backend_args', nargs=argparse.REMAINDER,
+                        help=argparse.SUPPRESS)
+
+    if len(sys.argv) == 1:
+        parser.print_help()
+        sys.exit(1)
+
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+
+    configure_logging(args.debug)
+
+    logging.info("Archimedes will start soon.")
+
+
+
+    logging.info("Archimes has finished .")
+
+
+def configure_logging(debug=False):
+    """Configure Archimedes logging
+
+    The function configures the log messages produced by Archimedes.
+    By default, log messages are sent to stderr. Set the parameter
+    `debug` to activate the debug mode.
+
+    :param debug: set the debug mode
+    """
+    if not debug:
+        logging.basicConfig(level=logging.INFO,
+                            format=ARCHIMEDES_LOG_FORMAT)
+        logging.getLogger('requests').setLevel(logging.WARNING)
+        logging.getLogger('urrlib3').setLevel(logging.WARNING)
+    else:
+        logging.basicConfig(level=logging.DEBUG,
+                            format=ARCHIMEDES_DEBUG_LOG_FORMAT)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        s = "\n\nReceived Ctrl-C or other break signal. Exiting.\n"
+        sys.stderr.write(s)
+        sys.exit(0)
