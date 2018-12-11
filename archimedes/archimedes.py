@@ -25,7 +25,8 @@
 
 import logging
 import json
-import pkgutil
+import os
+import re
 import requests
 
 
@@ -45,6 +46,22 @@ DASHBOARD = "dashboard"
 SEARCH = "search"
 VISUALIZATION = "visualization"
 INDEX_PATTERN = "index-pattern"
+
+JSON_EXT = '.json'
+
+
+def load_json(file_path):
+    """Load json from file.
+
+    :param file_path: the path of a JSON file
+
+    :returns: JSON content
+    """
+    with open(file_path, 'r') as f:
+        content = f.read()
+
+    json_content = json.loads(content)
+    return json_content
 
 
 class KibanaClient:
@@ -191,13 +208,19 @@ class SavedObjects(KibanaClient):
         }
 
         while True:
-            r_json = self.fetch(url, params=params)
+            try:
+                r_json = self.fetch(url, params=params)
+            except requests.exceptions.HTTPError as error:
+                if error.response.status_code == 500:
+                    logging.warning("Impossible to retrieve objects at page %s, url %s", params['page'], url)
+                    params['page'] = params['page'] + 1
+                    continue
 
             yield r_json['saved_objects']
             current_page = r_json['page']
             fetched_objs += len(r_json['saved_objects'])
 
-            if fetched_objs >= r_json['total']:
+            if not r_json['saved_objects']:
                 break
 
             params['page'] = current_page + 1
@@ -322,36 +345,39 @@ class Dashboard(KibanaClient):
 
         return dashboard
 
-    def import_objects_from_file(self, file_name, exclude_dash=False, exclude_ip=False,
-                                 exclude_vis=False, exclude_src=False, force=False):
-        """Import objects from a file in Sigil repository.
+    def import_objects_from_file(self, file_path, exclude_dashboards=False, exclude_index_patterns=False,
+                                 exclude_visualizations=False, exclude_searches=False, force=False):
+        """Import objects from a JSON file.
 
-        :param file_name: name of the target file
-        :param exclude_dash: do not import dashboards
-        :param exclude_ip: do not import index patterns
-        :param exclude_vis: do not import visualizations
-        :param exclude_src: do not import searches
+        :param file_path: path of the target file
+        :param exclude_dashboards: do not import dashboards
+        :param exclude_index_patterns: do not import index patterns
+        :param exclude_visualizations: do not import visualizations
+        :param exclude_searches: do not import searches
         :param force: overwrite any existing objects on ID conflict
 
         :returns the list of imported objects, with errors (in case something went wrong)
         """
-        objects = self.extract_objects_from_file(file_name)
+        json_content = load_json(file_path)
 
-        if not objects:
+        if not json_content:
+            logging.warning("File %s is empty", file_path)
             return
 
-        result = self.import_objects(objects, exclude_dash, exclude_ip, exclude_vis, exclude_src, force)
-        return result
+        objects = {'objects': [json_content]}
 
-    def import_objects(self, data, exclude_dash=False, exclude_ip=False,
-                       exclude_vis=False, exclude_src=False, force=False):
+        self.import_objects(objects, exclude_dashboards, exclude_index_patterns,
+                            exclude_visualizations, exclude_searches, force)
+
+    def import_objects(self, data, exclude_dashboards=False, exclude_index_patterns=False,
+                       exclude_visualizations=False, exclude_searches=False, force=False):
         """Import objects from a dictionary.
 
         :param data: dictionary
-        :param exclude_dash: do not import dashboards
-        :param exclude_ip: do not import index patterns
-        :param exclude_vis: do not import visualizations
-        :param exclude_src: do not import searches
+        :param exclude_dashboards: do not import dashboards
+        :param exclude_index_patterns: do not import index patterns
+        :param exclude_visualizations: do not import visualizations
+        :param exclude_searches: do not import searches
         :param force: overwrite any existing objects on ID conflict
 
         :returns the list of imported objects, with errors (in case something went wrong)
@@ -362,13 +388,13 @@ class Dashboard(KibanaClient):
             'force': 'false'
         }
 
-        if exclude_dash:
+        if exclude_dashboards:
             params['exclude'].append(DASHBOARD)
-        if exclude_ip:
+        if exclude_index_patterns:
             params['exclude'].append(INDEX_PATTERN)
-        if exclude_vis:
+        if exclude_visualizations:
             params['exclude'].append(VISUALIZATION)
-        if exclude_src:
+        if exclude_searches:
             params['exclude'].append(SEARCH)
 
         if force:
@@ -385,206 +411,336 @@ class Dashboard(KibanaClient):
             logging.error("%s with id %s not imported, %s", obj['type'], obj['id'], obj['error']['message'])
 
         logging.info("%s/%s object(s) imported", len(response['objects']), total)
-        return response
 
     @staticmethod
-    def extract_objects_from_file(file_path, exclude_dash=False, exclude_ip=False, exclude_vis=False, exclude_src=False):
+    def extract_objects_from_file(file_path):
         """Extract objects from data in the Sigils repository and return its contents.
 
         :param file_path: dashboard file path
-        :param exclude_dash: exclude dashboards
-        :param exclude_ip: exclude index patterns
-        :param exclude_vis: exclude visualizations
-        :param exclude_src: exclude searches
 
         :returns: a dict with the list of extracted objects
         """
-        json_content = Dashboard.__load_sigils_data(file_path)
+        json_content = load_json(file_path)
 
         if not json_content:
             return None
 
-        objects = []
-        for entry in json_content.keys():
-            if entry == "dashboard":
+        if 'objects' in json_content:
+            return json_content
 
-                if exclude_dash:
-                    continue
-
-                obj = {}
-                obj['id'] = json_content[entry]['id']
-                obj['type'] = DASHBOARD
-                obj['attributes'] = json_content[entry]['value']
-                objects.append(obj)
-            else:
-                for item in json_content[entry]:
-                    if entry == "searches" and exclude_src:
-                        continue
-                    if entry == "visualizations" and exclude_vis:
-                        continue
-                    if entry == "index_patterns" and exclude_ip:
-                        continue
-
-                    obj = {}
-                    obj['id'] = item['id']
-                    obj['attributes'] = item['value']
-
-                    if entry == "searches":
-                        obj['type'] = SEARCH
-                    elif entry == "visualizations":
-                        obj['type'] = VISUALIZATION
-                    elif entry == "index_patterns":
-                        obj['type'] = INDEX_PATTERN
-
-                    objects.append(obj)
-
-        return {'objects': objects}
+        return {'objects': [json_content]}
 
     @staticmethod
-    def __load_sigils_data(file_path):
-        """Load data from Sigils repository and return its contents.
+    def load_json(file_path):
+        """Load json from file.
 
-        :param file_path: dashboard file path
+        :param file_path: the path of a JSON file
 
-        :returns: JSON of the dashboard, null if not found
+        :returns: JSON content
         """
-        sigils_bytes = pkgutil.get_data('panels', 'json' + '/' + file_path)
-        sigils_str = sigils_bytes.decode(encoding='utf8')
+        with open(file_path, 'r') as f:
+            content = f.read()
 
-        try:
-            json_content = json.loads(sigils_str)
-        except ValueError:
-            json_content = None
-
+        json_content = json.loads(content)
         return json_content
 
 
+class Archimedes:
+    VISUALIZATIONS_FOLDER = 'visualizations'
+    INDEX_PATTERNS_FOLDER = 'index-patterns'
+    SEARCHES_FOLDER = 'searches'
+
+    def __init__(self, url):
+        self.url = url
+
+    def import_index_pattern(self, index_pattern_path, force=False):
+        dashboard = Dashboard(self.url)
+        dashboard.import_objects_from_file(index_pattern_path, force=force, exclude_dashboards=True,
+                                           exclude_visualizations=True, exclude_searches=True)
+
+    def import_visualization(self, visualization_path, force=False):
+        dashboard = Dashboard(self.url)
+        dashboard.import_objects_from_file(visualization_path, force=force, exclude_dashboards=True,
+                                           exclude_index_patterns=True, exclude_searches=True)
+
+    def import_search(self, search_path, force=False):
+        dashboard = Dashboard(self.url)
+        dashboard.import_objects_from_file(search_path, force=force, exclude_dashboards=True,
+                                           exclude_index_patterns=True, exclude_visualizations=True)
+
+    def import_dashboard(self, dashboard_path, visualizations_folder=None, searches_folder=None, index_patterns_folder=None,
+                         force=False, one_file=False):
+        dashboard = Dashboard(self.url)
+
+        if one_file:
+            logging.info("Importing %s", dashboard_path)
+            dashboard.import_objects_from_file(dashboard_path, force=force)
+            return
+
+        components = self.load_dashboard_components(dashboard_path, visualizations_folder,
+                                                    searches_folder, index_patterns_folder)
+        for comp_path in components:
+            logging.info("Importing %s", comp_path)
+            dashboard.import_objects_from_file(comp_path, force=force)
+
+    def load_dashboard_components(self, dashboard_path, visualizations_folder, searches_folder, ips_folder):
+        components = []
+        dash_content = load_json(dashboard_path)
+
+        visualizations = json.loads(dash_content['attributes']['panelsJSON'])
+        for vis in visualizations:
+            vis_path = self.find_dashboard_component(visualizations_folder, self.file_name(VISUALIZATION, vis['id']))
+
+            if not vis_path:
+                logging.error("Visualization %s not found in %s", vis['id'], visualizations_folder)
+                raise FileNotFoundError
+
+            vis_content = load_json(vis_path)
+            if 'savedSearchId' in vis_content['attributes']:
+                search_path = self.load_search(searches_folder, vis_content['attributes']['savedSearchId'])
+                if search_path not in components:
+                    components.append(search_path)
+
+            if 'kibanaSavedObjectMeta' in vis_content['attributes'] \
+                    and 'searchSourceJSON' in vis_content['attributes']['kibanaSavedObjectMeta']:
+                index_content = json.loads(vis_content['attributes']['kibanaSavedObjectMeta']['searchSourceJSON'])
+                ip_path = self.load_index_pattern(ips_folder, index_content['index'])
+                if ip_path not in components:
+                    components.append(ip_path)
+
+            components.append(vis_path)
+
+        components.append(dashboard_path)
+
+        return list(components)
+
+    def load_search(self, searches_folder, search_id):
+        search_path = self.find_dashboard_component(searches_folder, self.file_name(SEARCH, search_id))
+
+        if not search_path:
+            logging.error("Search %s not found in %s", search_id, searches_folder)
+            raise FileNotFoundError
+
+        return search_path
+
+    def load_index_pattern(self, ips_folder, ip_id):
+
+        ip_path = self.find_dashboard_component(ips_folder, self.file_name(INDEX_PATTERN, ip_id))
+
+        if not ip_path:
+            logging.error("Index pattern %s not found in %s", ip_id, ips_folder)
+            raise FileNotFoundError
+
+        return ip_path
+
+    def export_dashboard(self, title, to_path, one_file=False, overwrite=False):
+        dashboard = Dashboard(self.url)
+        dashboard_content = dashboard.export_dashboard_by_title(title)
+
+        if not dashboard_content:
+            logging.error("Dashboard with title %s not found", title)
+            return
+
+        if one_file:
+            logging.info("Export dashboard to file %s", to_path)
+            dash = [obj for obj in dashboard_content['objects'] if obj['type'] == 'dashboard'][0]
+            file_path = os.path.join(to_path, self.file_name(dash['type'], dash['id']))
+            self.save_to_file(dashboard_content, file_path, overwrite)
+            return
+
+        for obj in dashboard_content['objects']:
+            folder = self.folder_name(to_path, obj)
+            file_path = os.path.join(folder, self.file_name(obj['type'], obj['id']))
+            self.save_to_file(obj, file_path, overwrite)
+
+    @staticmethod
+    def find_dashboard_component(folder_path, target_name):
+        files = os.listdir(folder_path)
+        found = None
+        for name in files:
+            if target_name == name:
+                found = os.path.join(folder_path, target_name)
+                break
+
+        return found
+
+    @staticmethod
+    def file_name(obj_type, obj_id):
+        name = obj_type + '_' + obj_id + JSON_EXT
+        return name.lower()
+
+    @staticmethod
+    def folder_name(dest, json_content):
+        obj_type = json_content['type']
+        name = ''
+
+        if obj_type == VISUALIZATION:
+            name = Archimedes.VISUALIZATIONS_FOLDER
+        elif obj_type == INDEX_PATTERN:
+            name = Archimedes.INDEX_PATTERNS_FOLDER
+        elif obj_type == SEARCH:
+            name = Archimedes.SEARCHES_FOLDER
+
+        if name:
+            dest = os.path.join(dest, name)
+
+        os.makedirs(dest, exist_ok=True)
+        return dest
+
+    @staticmethod
+    def obj_id(file_path):
+        file_path = re.sub('^.*_', '', file_path)
+        obj_id = re.sub(JSON_EXT + '$', '', file_path)
+
+        return obj_id
+
+    @staticmethod
+    def save_to_file(json_content, dest, overwrite=False):
+        content = json.dumps(json_content, sort_keys=True, indent=4)
+
+        if os.path.exists(dest) and not overwrite:
+            logging.warning("File %s already exists, it won't be overwritten", dest)
+            return
+
+        with open(dest, "w+") as f:
+            f.write(content)
+
+
 def main():
-    KIBITER_URL = "http://localhost:5601"
+    KIBITER_URL = "http://admin:admin@localhost:5601"
+    archimedes = Archimedes(KIBITER_URL)
 
-    example_dashboard = {
-        "objects": [
-            {
-              "id": "80b956f0-b2cd-11e8-ad8e-85441f0c2e5c",
-              "type": "visualization",
-              "updated_at": "2018-09-07T18:40:33.247Z",
-              "version": 1,
-              "attributes": {
-                "title": "Count Example",
-                "visState": "{\"title\":\"Count Example\",\"type\":\"metric\",\"params\":{\"addTooltip\":true,\"addLegend\":false,\"type\":\"metric\",\"metric\":{\"percentageMode\":false,\"useRanges\":false,\"colorSchema\":\"Green to Red\",\"metricColorMode\":\"None\",\"colorsRange\":[{\"from\":0,\"to\":10000}],\"labels\":{\"show\":true},\"invertColors\":false,\"style\":{\"bgFill\":\"#000\",\"bgColor\":false,\"labelColor\":false,\"subText\":\"\",\"fontSize\":60}}},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"count\",\"schema\":\"metric\",\"params\":{}}]}",
-                "uiStateJSON": "{}",
-                "description": "",
-                "version": 1,
-                "kibanaSavedObjectMeta": {
-                  "searchSourceJSON": "{\"index\":\"90943e30-9a47-11e8-b64d-95841ca0b247\",\"query\":{\"query\":\"\",\"language\":\"lucene\"},\"filter\":[]}"
-                }
-              }
-            },
-            {
-              "id": "90943e30-9a47-11e8-b64d-95841ca0b247",
-              "type": "index-pattern",
-              "updated_at": "2018-09-07T18:39:47.683Z",
-              "version": 1,
-              "attributes": {
-                "title": "kibana_sample_data_logs",
-                "timeFieldName": "timestamp",
-                "fields": "<truncated for example>",
-                "fieldFormatMap": "{\"hour_of_day\":{}}"
-              }
-            },
-            {
-              "id": "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c",
-              "type": "dashboard",
-              "updated_at": "2018-09-07T18:41:05.887Z",
-              "version": 1,
-              "attributes": {
-                "title": "Example Dashboard",
-                "hits": 0,
-                "description": "",
-                "panelsJSON": "[{\"gridData\":{\"w\":24,\"h\":15,\"x\":0,\"y\":0,\"i\":\"1\"},\"version\":\"7.0.0-alpha1\",\"panelIndex\":\"1\",\"type\":\"visualization\",\"id\":\"80b956f0-b2cd-11e8-ad8e-85441f0c2e5c\",\"embeddableConfig\":{}}]",
-                "optionsJSON": "{\"darkTheme\":false,\"useMargins\":true,\"hidePanelTitles\":false}",
-                "version": 1,
-                "timeRestore": False,
-                "kibanaSavedObjectMeta": {
-                  "searchSourceJSON": "{\"query\":{\"query\":\"\",\"language\":\"lucene\"},\"filter\":[]}"
-                }
-              }
-            }
-        ]
-    }
+    archimedes.import_dashboard('./dashboard_git.json',
+                                visualizations_folder='./visualizations',
+                                searches_folder='./searches',
+                                index_patterns_folder='./index-patterns',
+                                force=True)
 
-    dash = Dashboard(KIBITER_URL)
-    dash.import_objects(example_dashboard)
-
-    # Test SavedObjects
-    found = dash.saved_objects.find_by_title("visualization", "Count Example")
-    not_found = dash.saved_objects.find_by_title("visualization", "Example")
-    found = dash.saved_objects.find_by_id("visualization", "80b956f0-b2cd-11e8-ad8e-85441f0c2e5c")
-    found = dash.saved_objects.get_object("visualization", "80b956f0-b2cd-11e8-ad8e-85441f0c2e5c")
-    not_found = dash.saved_objects.get_object("visualization", "80b956f0-b2cd-11e8-ad8e-85441f0c2e5e")
-    result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", "XYZ")
-    not_found = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5x", "title", "XYZ")
-    wrong_attributes = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", {"x": "y"})
-    found = dash.saved_objects.find_by_title("dashboard", "XYZ")
-    result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", "Example Dashboard")
-    found = dash.saved_objects.find_by_title("dashboard", "Example Dashboard")
-
-    # version is not updated in the .kibana, but it is in the object returned by the API
-    # the updated_at value changes at any time there is a modification in the object, and it is reflected in the .kibana
-    result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", "ABC")
-    found = dash.saved_objects.find_by_title("dashboard", "ABC")
-    result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", "DEF")
-    found = dash.saved_objects.find_by_title("dashboard", "DEF")
-    result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", "GHI")
-    found = dash.saved_objects.find_by_title("dashboard", "GHI")
-    result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", "LMN")
-    found = dash.saved_objects.find_by_title("dashboard", "LMN")
-    # check update_at is refreshed when forcing the import of an existing object
-    previous_date = found['updated_at']
-    objects = dash.import_objects({'objects': [found]}, force=True)
-    current_date = objects['objects'][0]['updated_at']
-
-    result = dash.saved_objects.delete_object("visualization", "80b956f0-b2cd-11e8-ad8e-85441f0c2e5c")
-    found = dash.saved_objects.find_by_id("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c")
-    panels = found['attributes']['panelsJSON']
-    result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "panelsJSON", '[]')
-    found = dash.saved_objects.find_by_id("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c")
-    # deletions cause problems when exporting the dashboard, if the deleted visualization is not removed from the dashboard
-    # result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "panelsJSON", panels)
+    # KIBITER_URL = "http://localhost:5601"
+    #
+    # example_dashboard = {
+    #     "objects": [
+    #         {
+    #           "id": "80b956f0-b2cd-11e8-ad8e-85441f0c2e5c",
+    #           "type": "visualization",
+    #           "updated_at": "2018-09-07T18:40:33.247Z",
+    #           "version": 1,
+    #           "attributes": {
+    #             "title": "Count Example",
+    #             "visState": "{\"title\":\"Count Example\",\"type\":\"metric\",\"params\":{\"addTooltip\":true,\"addLegend\":false,\"type\":\"metric\",\"metric\":{\"percentageMode\":false,\"useRanges\":false,\"colorSchema\":\"Green to Red\",\"metricColorMode\":\"None\",\"colorsRange\":[{\"from\":0,\"to\":10000}],\"labels\":{\"show\":true},\"invertColors\":false,\"style\":{\"bgFill\":\"#000\",\"bgColor\":false,\"labelColor\":false,\"subText\":\"\",\"fontSize\":60}}},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"count\",\"schema\":\"metric\",\"params\":{}}]}",
+    #             "uiStateJSON": "{}",
+    #             "description": "",
+    #             "version": 1,
+    #             "kibanaSavedObjectMeta": {
+    #               "searchSourceJSON": "{\"index\":\"90943e30-9a47-11e8-b64d-95841ca0b247\",\"query\":{\"query\":\"\",\"language\":\"lucene\"},\"filter\":[]}"
+    #             }
+    #           }
+    #         },
+    #         {
+    #           "id": "90943e30-9a47-11e8-b64d-95841ca0b247",
+    #           "type": "index-pattern",
+    #           "updated_at": "2018-09-07T18:39:47.683Z",
+    #           "version": 1,
+    #           "attributes": {
+    #             "title": "kibana_sample_data_logs",
+    #             "timeFieldName": "timestamp",
+    #             "fields": "<truncated for example>",
+    #             "fieldFormatMap": "{\"hour_of_day\":{}}"
+    #           }
+    #         },
+    #         {
+    #           "id": "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c",
+    #           "type": "dashboard",
+    #           "updated_at": "2018-09-07T18:41:05.887Z",
+    #           "version": 1,
+    #           "attributes": {
+    #             "title": "Example Dashboard",
+    #             "hits": 0,
+    #             "description": "",
+    #             "panelsJSON": "[{\"gridData\":{\"w\":24,\"h\":15,\"x\":0,\"y\":0,\"i\":\"1\"},\"version\":\"7.0.0-alpha1\",\"panelIndex\":\"1\",\"type\":\"visualization\",\"id\":\"80b956f0-b2cd-11e8-ad8e-85441f0c2e5c\",\"embeddableConfig\":{}}]",
+    #             "optionsJSON": "{\"darkTheme\":false,\"useMargins\":true,\"hidePanelTitles\":false}",
+    #             "version": 1,
+    #             "timeRestore": False,
+    #             "kibanaSavedObjectMeta": {
+    #               "searchSourceJSON": "{\"query\":{\"query\":\"\",\"language\":\"lucene\"},\"filter\":[]}"
+    #             }
+    #           }
+    #         }
+    #     ]
+    # }
+    #
+    # dash = Dashboard(KIBITER_URL)
+    # dash.import_objects(example_dashboard)
+    #
+    # # Test SavedObjects
+    # found = dash.saved_objects.find_by_title("visualization", "Count Example")
+    # not_found = dash.saved_objects.find_by_title("visualization", "Example")
+    # found = dash.saved_objects.find_by_id("visualization", "80b956f0-b2cd-11e8-ad8e-85441f0c2e5c")
+    # found = dash.saved_objects.get_object("visualization", "80b956f0-b2cd-11e8-ad8e-85441f0c2e5c")
+    # not_found = dash.saved_objects.get_object("visualization", "80b956f0-b2cd-11e8-ad8e-85441f0c2e5e")
+    # result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", "XYZ")
+    # not_found = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5x", "title", "XYZ")
+    # wrong_attributes = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", {"x": "y"})
+    # found = dash.saved_objects.find_by_title("dashboard", "XYZ")
+    # result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", "Example Dashboard")
+    # found = dash.saved_objects.find_by_title("dashboard", "Example Dashboard")
+    #
+    # # version is not updated in the .kibana, but it is in the object returned by the API
+    # # the updated_at value changes at any time there is a modification in the object, and it is reflected in the .kibana
+    # result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", "ABC")
+    # found = dash.saved_objects.find_by_title("dashboard", "ABC")
+    # result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", "DEF")
+    # found = dash.saved_objects.find_by_title("dashboard", "DEF")
+    # result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", "GHI")
+    # found = dash.saved_objects.find_by_title("dashboard", "GHI")
+    # result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "title", "LMN")
+    # found = dash.saved_objects.find_by_title("dashboard", "LMN")
+    # # check update_at is refreshed when forcing the import of an existing object
+    # previous_date = found['updated_at']
+    # objects = dash.import_objects({'objects': [found]}, force=True)
+    # current_date = objects['objects'][0]['updated_at']
+    #
+    # result = dash.saved_objects.delete_object("visualization", "80b956f0-b2cd-11e8-ad8e-85441f0c2e5c")
     # found = dash.saved_objects.find_by_id("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c")
-
-    # Test Dashboard
-    result = dash.export_dashboard_by_id("942dcef0-b2cd-11e8-ad8e-85441f0c2e5c")
-    not_found = dash.export_dashboard_by_id("942dcef0-b2cd-11e8-ad8e-85441f0c2e5x")
-    result = dash.export_dashboard_by_title(found['attributes']['title'])
-    result = dash.saved_objects.delete_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c")
-    result = dash.saved_objects.delete_object("visualization", "80b956f0-b2cd-11e8-ad8e-85441f0c2e5c")
-    result = dash.saved_objects.delete_object("index-pattern", "90943e30-9a47-11e8-b64d-95841ca0b247")
-
-    # Test import from Sigils
-    # error in importing Gerrit dashboard, release date not allowed (mapping set to strict)
-    result = dash.import_objects_from_file("gerrit.json", force=True, exclude_src=True)
-    found = dash.saved_objects.find_by_title("visualization", "gerrit_patchsets_per_changeset")
-    # since Gerrit dashboard has not been imported, the object is not found
-    not_found = dash.saved_objects.find_by_title("dashboard", "Gerrit")
-
-    objects = dash.extract_objects_from_file("gerrit.json")
-    for obj in objects['objects']:
-        dash.saved_objects.delete_object(obj['type'], obj['id'])
-
-    dashboard = objects['objects'][0]
-    # setting the updated_at and version values doesn't have any effect
-    dashboard['updated_at'] = dashboard['attributes']['release_date']
-    dashboard['version'] = 100
-    dashboard['attributes'].pop('release_date')
-    
-    # the index pattern is needed to visualize the data
-    index_pattern = dash.extract_objects_from_file("gerrit-index-pattern.json")
-    index_pattern['objects'][0]['attributes'].pop('release_date')
-    objects['objects'].append(index_pattern['objects'][0])
-
-    result = dash.import_objects(objects, force=True)
-    result = dash.export_dashboard_by_title("Gerrit")
+    # panels = found['attributes']['panelsJSON']
+    # result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "panelsJSON", '[]')
+    # found = dash.saved_objects.find_by_id("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c")
+    # # deletions cause problems when exporting the dashboard, if the deleted visualization is not removed from the dashboard
+    # # result = dash.saved_objects.update_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c", "panelsJSON", panels)
+    # # found = dash.saved_objects.find_by_id("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c")
+    #
+    # # Test Dashboard
+    # result = dash.export_dashboard_by_id("942dcef0-b2cd-11e8-ad8e-85441f0c2e5c")
+    # not_found = dash.export_dashboard_by_id("942dcef0-b2cd-11e8-ad8e-85441f0c2e5x")
+    # result = dash.export_dashboard_by_title(found['attributes']['title'])
+    # result = dash.saved_objects.delete_object("dashboard", "942dcef0-b2cd-11e8-ad8e-85441f0c2e5c")
+    # result = dash.saved_objects.delete_object("visualization", "80b956f0-b2cd-11e8-ad8e-85441f0c2e5c")
+    # result = dash.saved_objects.delete_object("index-pattern", "90943e30-9a47-11e8-b64d-95841ca0b247")
+    #
+    # # Test import from Sigils
+    # # error in importing Gerrit dashboard, release date not allowed (mapping set to strict)
+    # result = dash.import_objects_from_file("gerrit.json", force=True, exclude_src=True)
+    # found = dash.saved_objects.find_by_title("visualization", "gerrit_patchsets_per_changeset")
+    # # since Gerrit dashboard has not been imported, the object is not found
+    # not_found = dash.saved_objects.find_by_title("dashboard", "Gerrit")
+    #
+    # objects = dash.extract_objects_from_file("gerrit.json")
+    # for obj in objects['objects']:
+    #     dash.saved_objects.delete_object(obj['type'], obj['id'])
+    #
+    # dashboard = objects['objects'][0]
+    # # setting the updated_at and version values doesn't have any effect
+    # dashboard['updated_at'] = dashboard['attributes']['release_date']
+    # dashboard['version'] = 100
+    # dashboard['attributes'].pop('release_date')
+    #
+    # # the index pattern is needed to visualize the data
+    # index_pattern = dash.extract_objects_from_file("gerrit-index-pattern.json")
+    # index_pattern['objects'][0]['attributes'].pop('release_date')
+    # objects['objects'].append(index_pattern['objects'][0])
+    #
+    # result = dash.import_objects(objects, force=True)
+    # result = dash.export_dashboard_by_title("Gerrit")
 
 
 if __name__ == "__main__":
