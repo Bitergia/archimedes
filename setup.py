@@ -1,7 +1,6 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2014-2015 Bitergia
+# Copyright (C) 2014-2018 Bitergia
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -31,7 +30,7 @@ from setuptools import setup
 
 here = os.path.abspath(os.path.dirname(__file__))
 readme_md = os.path.join(here, 'README.md')
-version_py = os.path.join(here, 'archimides', '_version.py')
+version_py = os.path.join(here, 'archimedes', '_version.py')
 
 # Pypi wants the description to be in reStrcuturedText, but
 # we have it in Markdown. So, let's convert formats.
@@ -76,7 +75,6 @@ setup(name="archimedes",
       test_suite='tests',
       install_requires=[
           'requests>=2.7.0',
-          'grimoirelab-panels>=0.0.7',
           'grimoirelab-toolkit>=0.1.4'
       ],
       scripts=["bin/archimedes"],
