@@ -1,9 +1,8 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
 # Import and Export Kibana dashboards
 #
-# Copyright (C) 2015 Bitergia
+# Copyright (C) 2014-2018 Bitergia
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -25,109 +24,141 @@
 
 import argparse
 import logging
+from operator import xor
 import sys
 
-import requests
-
-import archimedes
+from archimedes.backend import Archimedes
+from archimedes._version import __version__
 
 # Logging formats
 ARCHIMEDES_LOG_FORMAT = "[%(asctime)s] - %(message)s"
 ARCHIMEDES_DEBUG_LOG_FORMAT = "[%(asctime)s - %(name)s - %(levelname)s] - %(message)s"
 ARCHIMEDES_USAGE_MSG = "usage: archimedes [options]"
-ARCHIMEDES_DESC_MSG = "Import/Export a Kibana-based dashboard"
+ARCHIMEDES_DESC_MSG = "Import and export Kibana dashboards, visualizations, searches and index patterns"
 ARCHIMEDES_VERSION_MSG = \
-"""%(prog)s """  + archimedes.__version__
+"""%(prog)s """  + __version__
 
 
-KIBITER_URL = "http://localhost:5601"
+FOLDER_PATH = './'
 
 
-def get_params_parser_create_dash():
-    """Parse command line arguments"""
+def config_logging(debug):
+    """Config logging level output output"""
 
-    parser = argparse.ArgumentParser(usage=ARCHIMEDES_USAGE_MSG,
-                                     description=ARCHIMEDES_DESC_MSG)
-
-    parser.add_argument("--url", help="Kibana URL")
-    parser.add_argument("--dashboard", help="Kibana dashboard id to export")
-    parser.add_argument("--split-index-patterns", action='store_true',
-                        help="Kibana index patterns are exported in different files")
-    parser.add_argument("--export", dest="export_file", help="file with the dashboard exported")
-
-    parser.add_argument("--import", dest="import_file", help="file with the dashboard/index pattern to be imported")
-    parser.add_argument("--strict", action="store_true", help="check release date and only import newer panels")
-    parser.add_argument("--kibana", dest="kibana_index", default=".kibana", help="Kibana index name (.kibana default)")
-    parser.add_argument("--list", action='store_true', help="list available dashboards")
-    parser.add_argument('-g', '--debug', dest='debug', action='store_true')
-    parser.add_argument("--data-sources", nargs='+', dest="data_sources", help="Data sources to be included")
-    parser.add_argument("--add-vis-studies", dest="add_vis_studies",
-                        action='store_true', help="Include visualizations for studies")
-    parser.add_argument("--kibana-url", dest="kibana_url", default="http://localhost:5601",
-                        help="Kibana URL (http://localhost:5601 by default)")
-
-    return parser
+    if debug:
+        logging.basicConfig(level=logging.DEBUG, format=ARCHIMEDES_DEBUG_LOG_FORMAT)
+        logging.debug("Debug mode activated")
+    else:
+        logging.basicConfig(level=logging.INFO, format=ARCHIMEDES_LOG_FORMAT)
 
 
-def parse_args():
+def get_params_parser():
     """Parse command line arguments"""
 
     parser = argparse.ArgumentParser(usage=ARCHIMEDES_USAGE_MSG,
                                      description=ARCHIMEDES_DESC_MSG,
                                      add_help=False)
 
+    parser.add_argument('-g', '--debug', dest='debug',
+                        action='store_true',
+                        help=argparse.SUPPRESS)
     parser.add_argument('-h', '--help', action='help',
                         help=argparse.SUPPRESS)
     parser.add_argument('-v', '--version', action='version',
                         version=ARCHIMEDES_VERSION_MSG,
                         help=argparse.SUPPRESS)
-    parser.add_argument('-g', '--debug', dest='debug',
-                        action='store_true',
-                        help=argparse.SUPPRESS)
 
-    parser.add_argument("--url", dest="base_url", default=KIBITER_URL,
-                        help="Kibana URL")
-    parser.add_argument("--export", dest="export", action='store_true',
-                        help="Export da")
-    parser.add_argument('backend_args', nargs=argparse.REMAINDER,
-                        help=argparse.SUPPRESS)
+    parser.add_argument('url', help='Kibana URL')
+    parser.add_argument('--force', dest='force', action='store_true', help='Force overwrite')
+    parser.add_argument('--json-path', dest='json_path', help='Path of the JSON file to import')
+
+    group_import_objects = parser.add_argument_group('Import objects')
+    group_import_objects.add_argument('--no-dashboards', dest='exclude_dashboards', action='store_true', help='Do not import dashboard objects')
+    group_import_objects.add_argument('--no-index-patterns', dest='exclude_index_patterns', action='store_true', help='Do not import index pattern objects')
+    group_import_objects.add_argument('--no-visualizations', dest='exclude_visualizations', action='store_true', help='Do not import visualization objects')
+    group_import_objects.add_argument('--no-searches', dest='exclude_searches', action='store_true', help='Do not import searches objects')
+
+    group_import_dashboard = parser.add_argument_group("Import dashboard")
+    group_import_dashboard.add_argument('--visualizations-folder', dest='visualizations_folder', help='Folder where visualization objects are stored')
+    group_import_dashboard.add_argument('--searches-folder', dest='searches_folder', help='Folder where search objects are stored')
+    group_import_dashboard.add_argument('--index-patterns-folder', dest='index_patterns_folder', help='Folder where index pattern objects are stored')
+
+    group_export = parser.add_argument_group('Export dashboard')
+    group_export.add_argument('--dashboard-id', dest='dashboard_id', help='ID of the dashboard to export')
+    group_export.add_argument('--dashboard-title', dest='dashboard_title', help='Title of the dashboard to export')
+    group_export.add_argument('--folder-path', dest='folder_path', default=FOLDER_PATH, help='Folder where to export the dashboard objects')
+    group_export.add_argument('--one-file', dest='one_file', action='store_true', help='Export the dashboard objects to a file')
+
+    exclusive = parser.add_mutually_exclusive_group(required=True)
+    exclusive.add_argument('--import-objects', dest='import_objects', action='store_true',
+                           help='Import Kibana objects from a JSON file')
+    exclusive.add_argument('--import-dashboard', dest='import_dashboard', action='store_true',
+                           help='Import a dashboard from a JSON file and the related visualizations, searches and index patterns located in different folders')
+    exclusive.add_argument('--export-dashboard', dest='export', action='store_true', help='Export dashboard from Kibana')
 
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
 
-    return parser.parse_args()
+    return parser
+
+
+def get_params():
+    """Get params to execute Archimedes"""
+
+    parser = get_params_parser()
+    args = parser.parse_args()
+
+    error = 0
+
+    if not args.url:
+        logging.error("Missing Kibana URL")
+        error = 1
+
+    if (args.import_objects or args.import_dashboard) and args.export:
+        logging.error("Archimedes requires --import-objects, --import-dashboard or --export")
+        error = 1
+
+    if args.import_objects and args.import_dashboard:
+        logging.error("Import requires --import-objects or --import-dashboard")
+        error = 1
+
+    if args.import_objects or args.import_dashboard:
+        if not args.json_path:
+            logging.error("Import requires --json-path")
+            error = 1
+
+    elif args.export:
+        if not xor(bool(args.dashboard_id), bool(args.dashboard_title)):
+            logging.error("Export requires --dashboard-id or --dashboard-title")
+            error = 1
+
+    if error:
+        parser.print_help()
+        sys.exit(1)
+
+    return args
 
 
 def main():
-    args = parse_args()
-
-    configure_logging(args.debug)
-
+    args = get_params()
+    config_logging(args.debug)
     logging.info("Archimedes will start soon.")
 
+    archimedes = Archimedes(args.url)
 
+    if args.import_objects:
+        archimedes.import_objects_from_file(args.json_path, args.exclude_dashboards, args.exclude_index_patterns,
+                                            args.exclude_visualizations, args.exclude_searches, args.force)
+    elif args.import_dashboard:
+        archimedes.import_dashboard(args.json_path, args.visualizations_folder, args.searches_folder,
+                                    args.index_patterns_folder, args.force)
+    elif args.export and args.dashboard_id:
+        archimedes.export_dashboard_by_id(args.dashboard_id, args.folder_path, args.one_file, args.force)
+    elif args.export and args.dashboard_title:
+        archimedes.export_dashboard_by_title(args.dashboard_title, args.folder_path, args.one_file, args.force)
 
-    logging.info("Archimes has finished .")
-
-
-def configure_logging(debug=False):
-    """Configure Archimedes logging
-
-    The function configures the log messages produced by Archimedes.
-    By default, log messages are sent to stderr. Set the parameter
-    `debug` to activate the debug mode.
-
-    :param debug: set the debug mode
-    """
-    if not debug:
-        logging.basicConfig(level=logging.INFO,
-                            format=ARCHIMEDES_LOG_FORMAT)
-        logging.getLogger('requests').setLevel(logging.WARNING)
-        logging.getLogger('urrlib3').setLevel(logging.WARNING)
-    else:
-        logging.basicConfig(level=logging.DEBUG,
-                            format=ARCHIMEDES_DEBUG_LOG_FORMAT)
+    logging.info("Archimedes has finished.")
 
 
 if __name__ == '__main__':
