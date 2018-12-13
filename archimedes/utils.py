@@ -24,6 +24,8 @@ import json
 import logging
 import os
 
+logger = logging.getLogger(__name__)
+
 
 def load_json(file_path):
     """Load JSON content from file.
@@ -49,12 +51,12 @@ def save_to_file(json_content, dest_path, force=False):
     content = json.dumps(json_content, sort_keys=True, indent=4)
 
     if os.path.exists(dest_path) and not force:
-        logging.warning("File %s already exists, it won't be overwritten", dest_path)
+        logger.warning("File %s already exists, it won't be overwritten", dest_path)
         return
 
     with open(dest_path, "w+") as f:
         f.write(content)
-        logging.info("File %s saved", dest_path)
+        logger.info("File %s saved", dest_path)
 
 
 def find_file(folder_path, target_name):
@@ -74,7 +76,7 @@ def find_file(folder_path, target_name):
             break
 
     if not found:
-        logging.error("File %s not found in %s", target_name, folder_path)
+        logger.error("File %s not found in %s", target_name, folder_path)
         raise FileNotFoundError
 
     return found

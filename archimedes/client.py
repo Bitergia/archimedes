@@ -20,9 +20,9 @@
 #   Valerio Cosentino <valcos@bitergia.com>
 #
 
+import json
 
 import requests
-import json
 
 HEADERS = {
     "Content-Type": "application/json",

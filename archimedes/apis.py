@@ -21,6 +21,7 @@
 #
 
 import logging
+
 import requests
 
 from .client import KibanaClient
@@ -31,6 +32,8 @@ DASHBOARD = "dashboard"
 SEARCH = "search"
 VISUALIZATION = "visualization"
 INDEX_PATTERN = "index-pattern"
+
+logger = logging.getLogger(__name__)
 
 
 class SavedObjects(KibanaClient):
@@ -65,7 +68,7 @@ class SavedObjects(KibanaClient):
                     break
 
         if not found_obj:
-            logging.warning("No %s found with title: %s", obj_type, obj_title)
+            logger.warning("No %s found with title: %s", obj_type, obj_title)
 
         return found_obj
 
@@ -87,7 +90,7 @@ class SavedObjects(KibanaClient):
                     break
 
         if not found_obj:
-            logging.warning("No %s found with title: %s", obj_type, obj_id)
+            logger.warning("No %s found with title: %s", obj_type, obj_id)
 
         return found_obj
 
@@ -108,7 +111,7 @@ class SavedObjects(KibanaClient):
                 r_json = self.fetch(url, params=params)
             except requests.exceptions.HTTPError as error:
                 if error.response.status_code == 500:
-                    logging.warning("Impossible to retrieve objects at page %s, url %s", params['page'], url)
+                    logger.warning("Impossible to retrieve objects at page %s, url %s", params['page'], url)
                     params['page'] = params['page'] + 1
                     continue
 
@@ -136,7 +139,7 @@ class SavedObjects(KibanaClient):
             r = self.fetch(url)
         except requests.exceptions.HTTPError as error:
             if error.response.status_code == 404:
-                logging.warning("No %s found with id: %s", obj_type, obj_id)
+                logger.warning("No %s found with id: %s", obj_type, obj_id)
             else:
                 raise error
 
@@ -151,10 +154,10 @@ class SavedObjects(KibanaClient):
         url = urijoin(self.base_url, self.API_SAVED_OBJECTS_URL, obj_type, obj_id)
         try:
             self.delete(url)
-            logging.info("Object %s with id %s deleted", obj_type, obj_id)
+            logger.info("Object %s with id %s deleted", obj_type, obj_id)
         except requests.exceptions.HTTPError as error:
             if error.response.status_code == 404:
-                logging.warning("No %s found with id: %s", obj_type, obj_id)
+                logger.warning("No %s found with id: %s", obj_type, obj_id)
             else:
                 raise error
 
@@ -178,13 +181,13 @@ class SavedObjects(KibanaClient):
 
         try:
             r = self.put(url, data=params)
-            logging.info("Object %s with id %s updated", obj_type, obj_id)
+            logger.info("Object %s with id %s updated", obj_type, obj_id)
         except requests.exceptions.HTTPError as error:
             if error.response.status_code == 404:
-                logging.warning("No %s found with id: %s", obj_type, obj_id)
+                logger.warning("No %s found with id: %s", obj_type, obj_id)
             elif error.response.status_code == 400:
-                logging.warning("Impossible to update attribute %s with value %s, for %s with id %s",
-                                attr, value, obj_type, obj_id)
+                logger.warning("Impossible to update attribute %s with value %s, for %s with id %s",
+                               attr, value, obj_type, obj_id)
             else:
                 raise error
 
@@ -217,7 +220,7 @@ class Dashboard(KibanaClient):
         dashboard = self.saved_objects.find_by_title("dashboard", dashboard_title)
 
         if not dashboard:
-            logging.error("Impossible to export dashboard with title %s, not found", dashboard_title)
+            logger.error("Impossible to export dashboard with title %s, not found", dashboard_title)
             return
 
         dashboard_id = dashboard['id']
@@ -240,11 +243,11 @@ class Dashboard(KibanaClient):
 
             if 'error' in dashboard['objects'][0]:
                 msg = dashboard['objects'][0]['error']['message'].lower()
-                logging.error("Impossible to export dashboard with id %s, %s", dashboard_id, msg)
+                logger.error("Impossible to export dashboard with id %s, %s", dashboard_id, msg)
                 dashboard = None
         except requests.exceptions.HTTPError as error:
             if error.response.status_code == 400:
-                logging.error("Impossible to export dashboard with id %s", dashboard_id)
+                logger.error("Impossible to export dashboard with id %s", dashboard_id)
             else:
                 raise error
 
@@ -287,6 +290,6 @@ class Dashboard(KibanaClient):
                 continue
 
             response['objects'].remove(obj)
-            logging.error("%s with id %s not imported, %s", obj['type'], obj['id'], obj['error']['message'])
+            logger.error("%s with id %s not imported, %s", obj['type'], obj['id'], obj['error']['message'])
 
-        logging.info("%s/%s object(s) imported", len(response['objects']), total)
+        logger.info("%s/%s object(s) imported", len(response['objects']), total)
