@@ -47,32 +47,54 @@ class Archimedes:
     def __init__(self, url):
         self.url = url
 
-    def import_index_pattern(self, index_pattern_path, force=False):
-        dashboard = Dashboard(self.url)
-        dashboard.import_objects_from_file(index_pattern_path, force=force, exclude_dashboards=True,
-                                           exclude_visualizations=True, exclude_searches=True)
+    def import_objects_from_file(self, file_path, exclude_dashboards=False, exclude_index_patterns=False,
+                                 exclude_visualizations=False, exclude_searches=False, force=False):
+        """Import dashboards, index patterns, visualizations and searches from a JSON file to Kibana.
+        The JSON file should be either a list of objects or a dict having a key 'objects'
+        with a list of objects as value (e.g,, {'objects': [...]}.
 
-    def import_visualization(self, visualization_path, force=False):
-        dashboard = Dashboard(self.url)
-        dashboard.import_objects_from_file(visualization_path, force=force, exclude_dashboards=True,
-                                           exclude_index_patterns=True, exclude_searches=True)
+        The method can overwrite previous versions of existing objects by setting
+        the parameter `force` to true.
 
-    def import_search(self, search_path, force=False):
-        dashboard = Dashboard(self.url)
-        dashboard.import_objects_from_file(search_path, force=force, exclude_dashboards=True,
-                                           exclude_index_patterns=True, exclude_visualizations=True)
+        :param file_path: path of the target file
+        :param exclude_dashboards: do not import dashboards
+        :param exclude_index_patterns: do not import index patterns
+        :param exclude_visualizations: do not import visualizations
+        :param exclude_searches: do not import searches
+        :param force: overwrite any existing objects on ID conflict
+        """
+        json_content = load_json(file_path)
 
-    def import_dashboard(self, dashboard_path, visualizations_folder=None, searches_folder=None,
-                         index_patterns_folder=None, force=False, one_file=False):
-        dashboard = Dashboard(self.url)
-
-        if one_file:
-            logging.info("Importing %s", dashboard_path)
-            dashboard.import_objects_from_file(dashboard_path, force=force)
+        if not json_content:
+            logging.warning("File %s is empty", file_path)
             return
 
+        if 'objects' not in json_content:
+            objects = {'objects': [json_content]}
+        else:
+            objects = json_content
+
+        dashboard = Dashboard(self.url)
+        logging.info("Importing %s", file_path)
+        dashboard.import_objects(objects, exclude_dashboards, exclude_index_patterns,
+                                 exclude_visualizations, exclude_searches, force)
+
+    def import_dashboard(self, dashboard_path, visualizations_folder=None, searches_folder=None,
+                         index_patterns_folder=None, force=False):
+        """Import a dashboard from a JSON file and the related objects (i.e., visualizations,
+        search and index pattern) located in different folders.
+
+        The method can overwrite previous versions of existing objects by setting
+        the parameter `force` to true.
+
+        :param dashboard_path: path of the dashboard to import
+        :param visualizations_folder: folder where visualizations are stored
+        :param searches_folder: folder: folder where searches are stored
+        :param index_patterns_folder: folder where index patterns are stored
+        :param force: overwrite any existing objects on ID conflict
+        """
         if not visualizations_folder:
-            logging.error("Dashboard components not loaded, visualizations folder not set")
+            logging.error("Dashboard objects not loaded, visualizations folder not set")
             return
 
         if not searches_folder:
@@ -81,66 +103,67 @@ class Archimedes:
         if not index_patterns_folder:
             logging.info("Dashboard index pattern won't be loaded, index patterns folder not set")
 
-        components = self.load_dashboard_components(dashboard_path, visualizations_folder,
+        dashboard_files = self.find_dashboard_files(dashboard_path, visualizations_folder,
                                                     searches_folder, index_patterns_folder)
-        for comp_path in components:
-            logging.info("Importing %s", comp_path)
-            dashboard.import_objects_from_file(comp_path, force=force)
+        for df in dashboard_files:
+            logging.info("Importing %s", df)
+            self.import_objects_from_file(df, force=force)
 
-    def load_dashboard_components(self, dashboard_path, visualizations_folder=None,
-                                  searches_folder=None, index_patterns_folder=None):
-        components = []
+    def find_dashboard_files(self, dashboard_path, visualizations_folder=None,
+                             searches_folder=None, index_patterns_folder=None):
+        """Find the files containing the objects referenced in `dashboard_path`
+        by looking into `visualizations_folder`, `searches_folder` and
+        `index_patterns_folder`.
+
+        :param dashboard_path: path of the dashboard to import
+        :param visualizations_folder: folder where visualizations are stored
+        :param searches_folder: folder: folder where searches are stored
+        :param index_patterns_folder: folder where index patterns are stored
+
+        :returns the list of files containing the objects that compose a dashboard
+        """
+        dashboard_files = []
         dash_content = load_json(dashboard_path)
 
         visualizations = json.loads(dash_content['attributes']['panelsJSON'])
         for vis in visualizations:
             vis_path = find_file(visualizations_folder, self.file_name(VISUALIZATION, vis['id']))
-
-            if not vis_path:
-                logging.error("Visualization %s not found in %s", vis['id'], visualizations_folder)
-                raise FileNotFoundError
-
             vis_content = load_json(vis_path)
 
             if 'savedSearchId' in vis_content['attributes'] and searches_folder:
-                search_path = self.load_search(searches_folder, vis_content['attributes']['savedSearchId'])
-                if search_path not in components:
-                    components.append(search_path)
+                search_id = vis_content['attributes']['savedSearchId']
+                search_path = find_file(searches_folder, self.file_name(SEARCH, search_id))
+                if search_path not in dashboard_files:
+                    dashboard_files.append(search_path)
 
             if 'kibanaSavedObjectMeta' in vis_content['attributes'] \
                     and 'searchSourceJSON' in vis_content['attributes']['kibanaSavedObjectMeta'] \
                     and index_patterns_folder:
                 index_content = json.loads(vis_content['attributes']['kibanaSavedObjectMeta']['searchSourceJSON'])
-                ip_path = self.load_index_pattern(index_patterns_folder, index_content['index'])
-                if ip_path not in components:
-                    components.append(ip_path)
+                index_pattern_id = index_content['index']
+                ip_path = find_file(index_patterns_folder, self.file_name(INDEX_PATTERN, index_pattern_id))
+                if ip_path not in dashboard_files:
+                    dashboard_files.append(ip_path)
 
-            components.append(vis_path)
+            dashboard_files.append(vis_path)
 
-        components.append(dashboard_path)
+        dashboard_files.append(dashboard_path)
 
-        return list(components)
+        return list(dashboard_files)
 
-    def load_search(self, searches_folder, search_id):
-        search_path = find_file(searches_folder, self.file_name(SEARCH, search_id))
+    def export_dashboard_by_id(self, dash_id, local_path, one_file=False, force=False):
+        """Locate a dashboard by its ID in Kibana and export it to a `local path`. The exported data
+        can be saved in a single file (`one_file` = True) or divided into several folders according
+        to the type of the objects exported (i.e., visualizations, searches and index patterns).
 
-        if not search_path:
-            logging.error("Search %s not found in %s", search_id, searches_folder)
-            raise FileNotFoundError
+        The method can overwrite previous versions of existing files by setting the
+        parameter `force` to true.
 
-        return search_path
-
-    def load_index_pattern(self, ips_folder, ip_id):
-
-        ip_path = find_file(ips_folder, self.file_name(INDEX_PATTERN, ip_id))
-
-        if not ip_path:
-            logging.error("Index pattern %s not found in %s", ip_id, ips_folder)
-            raise FileNotFoundError
-
-        return ip_path
-
-    def export_dashboard_by_id(self, dash_id, to_path, one_file=False, force=False):
+        :param dash_id: ID of the dashboard to export
+        :param local_path: folder where to export the dashboard objects
+        :param one_file: export the dashboard objects to a file
+        :param force: overwrite an existing file on file name conflict
+        """
         dashboard = Dashboard(self.url)
         dashboard_content = dashboard.export_dashboard_by_id(dash_id)
 
@@ -148,9 +171,21 @@ class Archimedes:
             logging.error("Dashboard with id %s not found", dash_id)
             return
 
-        self.export_dashboard_content(dashboard_content, to_path, one_file, force)
+        self.__export_dashboard_content(dashboard_content, local_path, one_file, force)
 
-    def export_dashboard_by_title(self, dash_title, to_path, one_file=False, force=False):
+    def export_dashboard_by_title(self, dash_title, local_path, one_file=False, force=False):
+        """Locate a dashboard by its title in Kibana and export it to a `local path`. The exported data
+        can be saved in a single file (`one_file` = True) or divided into several folders according to the
+        type of the objects exported (i.e., visualizations, searches and index patterns).
+
+        The method can overwrite previous versions of existing files by setting the
+        parameter `force` to true.
+
+        :param dash_title: title of the dashboard to export
+        :param local_path: folder where to export the dashboard objects
+        :param one_file: export the dashboard objects to a file
+        :param force: overwrite an existing file on file name conflict
+        """
         dashboard = Dashboard(self.url)
         dashboard_content = dashboard.export_dashboard_by_title(dash_title)
 
@@ -158,30 +193,27 @@ class Archimedes:
             logging.error("Dashboard with title %s not found", dash_title)
             return
 
-        self.export_dashboard_content(dashboard_content, to_path, one_file, force)
-
-    def export_dashboard_content(self, content, to_path, one_file, force):
-        if one_file:
-            logging.info("Exporting one-file dashboard to folder %s", to_path)
-            dash = [obj for obj in content['objects'] if obj['type'] == 'dashboard'][0]
-            file_path = os.path.join(to_path, self.file_name(dash['type'], dash['id']))
-            save_to_file(content, file_path, force)
-            return
-
-        for obj in content['objects']:
-            folder = self.folder_name(to_path, obj)
-            file_path = os.path.join(folder, self.file_name(obj['type'], obj['id']))
-            save_to_file(obj, file_path, force)
+        self.__export_dashboard_content(dashboard_content, local_path, one_file, force)
 
     @staticmethod
     def file_name(obj_type, obj_id):
+        """Build the name of a file according the object type and ID.
+
+        :param obj_type: type of the object
+        :param obj_id: ID of the object
+        """
         name = obj_type + '_' + obj_id + JSON_EXT
         return name.lower()
 
     @staticmethod
-    def folder_name(dest, json_content):
-        obj_type = json_content['type']
+    def folder_path(root_path, obj_type):
+        """Build the path of a folder according to the object type.
+
+        :param root_path: root path
+        :param obj_type: type of the object
+        """
         name = ''
+        folder_path = root_path
 
         if obj_type == VISUALIZATION:
             name = Archimedes.VISUALIZATIONS_FOLDER
@@ -191,25 +223,51 @@ class Archimedes:
             name = Archimedes.SEARCHES_FOLDER
 
         if name:
-            dest = os.path.join(dest, name)
+            folder_path = os.path.join(root_path, name)
 
-        os.makedirs(dest, exist_ok=True)
-        return dest
+        os.makedirs(folder_path, exist_ok=True)
+        return folder_path
+
+    def __export_dashboard_content(self, content, local_path, one_file, force):
+        """Export the content of a dashboard to a `local path`. The exported data
+        can be saved in a single file (`one_file` = True) or divided into several folders
+        according to the type of the objects exported (i.e., visualizations, searches
+        and index patterns).
+
+        The method can overwrite previous versions of existing files by setting the
+        parameter `force` to true.
+
+        :param content: title of the dashboard to export
+        :param local_path: folder where to export the dashboard objects
+        :param one_file: export the dashboard objects to a file
+        :param force: overwrite an existing file on file name conflict
+        """
+        if one_file:
+            logging.info("Exporting one-file dashboard to folder %s", local_path)
+            dash = [obj for obj in content['objects'] if obj['type'] == 'dashboard'][0]
+            file_path = os.path.join(local_path, self.file_name(dash['type'], dash['id']))
+            save_to_file(content, file_path, force)
+            return
+
+        for obj in content['objects']:
+            folder = self.folder_path(local_path, obj['type'])
+            file_path = os.path.join(folder, self.file_name(obj['type'], obj['id']))
+            save_to_file(obj, file_path, force)
 
 
 def main():
     KIBITER_URL = "http://admin:admin@localhost:5601"
     archimedes = Archimedes(KIBITER_URL)
 
-    archimedes.export_dashboard_by_title("Git", to_path='./', one_file=True, force=True)
+    archimedes.export_dashboard_by_title("Git", local_path='./', one_file=True, force=True)
+    archimedes.import_objects_from_file('./dashboard_git.json', force=True)
 
-    # archimedes.import_dashboard('./dashboard_git.json',
-    #                             visualizations_folder='./visualizations',
-    #                             searches_folder='./searches',
-    #                             index_patterns_folder='./index-patterns',
-    #                             force=True)
+    archimedes.export_dashboard_by_id("Git", local_path='./', force=True)
 
-    # archimedes.import_dashboard('./dashboard_git.json', one_file=True)
+    archimedes.import_dashboard('./dashboard_git.json',
+                                visualizations_folder='./visualizations',
+                                index_patterns_folder='./index-patterns',
+                                force=True)
 
     # KIBITER_URL = "http://localhost:5601"
     #
