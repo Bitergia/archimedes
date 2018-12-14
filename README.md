@@ -31,11 +31,34 @@ Currently, Archimedes is able to perform the following operations
   
   The operation can overwrite previous versions of existing objects.
   
+```buildoutcfg
+archimedes
+http://...                        # Kibana URL (required)
+--import-objects                  # action (required)
+--json-path ...                   # path of the JSON file that include Kibana objects (required)
+--no-dashboards                   # do not import dashboard objects
+--no-index-patterns               # do not import index pattern objects
+--no-visualizations               # do not import visualization objects
+--no-searches                     # do not import searches objects
+--force                           # overwrite any existing objects on ID conflict
+```
+  
 - **Import dashboard**
 
   Import a dashboard from a JSON file and the related objects (i.e., visualizations, search and index pattern) located in different folders.
   
   The operation can overwrite previous versions of existing objects.
+  
+```buildoutcfg
+archimedes
+http://...                        # Kibana URL (required)
+--import-dashboard                # action (required)
+--json-path ...                   # path of the dashboard to import (required)
+--visualizations-folder ...       # folder where visualization objects are stored
+--searches_folder ...             # folder where searches objects are stored
+--index-patterns-folder ...       # folder where index pattern objects are stored
+--force                           # overwrite any existing objects on ID conflict
+```
   
 - **Export dashboard by ID or title**
 
@@ -44,55 +67,56 @@ Currently, Archimedes is able to perform the following operations
   to the type of the objects exported (i.e., visualizations, searches and index patterns).
 
   The operation can overwrite previous versions of existing files.
+  
+```buildoutcfg
+archimedes
+http://...                        # Kibana URL (required)
+--export-dashboard                # action (required)
+--dashboard-id/title ...          # ID/title of the dashboard to export (required)
+--folder-path  ...                # folder where to export the dashboard objects (default './')
+--one-file                        # export the dashboard objects to a file
+--force                           # overwrite an existing file on file name conflict
+```
 
 ## Examples
 
 - **Import objects from file** 
 ```buildoutcfg
 archimedes
-http://admin:admin@localhost:5601 # Kibana URL (required)
---import-objects                  # action
---json-path ./dashboard_git.json  # path of the JSON file that include Kibana objects (required)
---no-dashboards'                  # do not import dashboard objects
---no-index-patterns'              # do not import index pattern objects
---no-visualizations               # do not import visualization objects
---no-searches                     # do not import searches objects
---force                           # overwrite any existing objects on ID conflict
-
+http://admin:admin@localhost:5601
+--import-objects
+--json-path ./dashboard_git.json
+--force
 ```
 
 - **Import dashboard**
 ```buildoutcfg
 archimedes
-http://admin:admin@localhost:5601 # Kibana URL (required)
---import-dashboard                # action
---json-path ./dashboard_git.json  # path of the dashboard to import (required)
---visualizations-folder           # folder where visualization objects are stored
---searches_folder                 # folder where searches objects are stored
---index-patterns-folder           # folder where index pattern objects are stored
---force                           # overwrite any existing objects on ID conflict
+http://admin:admin@localhost:5601
+--import-dashboard
+--json-path ./dashboard_git.json
+--visualizations-folder ./visualizations
+--index-patterns-folder ./index-patterns
+--force
 ```
 
 - **Export dashboard by ID**
 ```buildoutcfg
 archimedes
-http://admin:admin@localhost:5601 # Kibana URL (required)
---export-dashboard                # action
---dashboard-id                    # ID of the dashboard to export (required)
---folder-path                     # folder where to export the dashboard objects (default './')
---one-file                        # export the dashboard objects to a file
---force                           # overwrite an existing file on file name conflict
+http://admin:admin@localhost:5601
+--export-dashboard
+--dashboard-id Git
+--one-file
+--force
 ```
 
 - **Export dashboard by title**
 ```buildoutcfg
 archimedes
-http://admin:admin@localhost:5601 # Kibana URL (required)
---export-dashboard                # action
---dashboard-title                 # title of the dashboard to export (required)
---folder-path                     # folder where to export the dashboard objects (default './')
---one-file                        # export the dashboard objects to a file
---force                           # overwrite an existing file on file name conflict
+http://admin:admin@localhost:5601
+--export-dashboard
+--dashboard-title Git
+--force
 ```
 
 
