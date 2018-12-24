@@ -34,35 +34,18 @@ Currently, Archimedes is able to perform the following operations
 ```buildoutcfg
 archimedes
 http://...                        # Kibana URL (required)
---import-objects                  # action (required)
---json-path ...                   # path of the JSON file that include Kibana objects (required)
---no-dashboards                   # do not import dashboard objects
---no-index-patterns               # do not import index pattern objects
---no-visualizations               # do not import visualization objects
---no-searches                     # do not import searches objects
---force                           # overwrite any existing objects on ID conflict
-```
-  
-- **Import dashboard**
-
-  Import a dashboard from a JSON file and the related objects (i.e., visualizations, search and index pattern) located in different folders.
-  
-  The operation can overwrite previous versions of existing objects.
-  
-```buildoutcfg
-archimedes
-http://...                        # Kibana URL (required)
---import-dashboard                # action (required)
---json-path ...                   # path of the dashboard to import (required)
+--import                          # action (required)
+--file-path ...                   # path of the JSON file that include Kibana objects (required)
+--search                          # search and import also the objects referenced the input file
 --visualizations-folder ...       # folder where visualization objects are stored
 --searches_folder ...             # folder where searches objects are stored
 --index-patterns-folder ...       # folder where index pattern objects are stored
 --force                           # overwrite any existing objects on ID conflict
 ```
   
-- **Export dashboard by ID or title**
+- **Export object by ID or title**
 
-  Locate a dashboard by its ID or title in Kibana and export it to a folder path. The exported data 
+  Locate an object by its ID or title in Kibana and export it to a folder path. The exported data 
   can be saved in a single file or divided into several folders according 
   to the type of the objects exported (i.e., visualizations, searches and index patterns).
 
@@ -71,52 +54,78 @@ http://...                        # Kibana URL (required)
 ```buildoutcfg
 archimedes
 http://...                        # Kibana URL (required)
---export-dashboard                # action (required)
---dashboard-id/title ...          # ID/title of the dashboard to export (required)
+--export                          # action (required)
+--obj-id/title ...                # ID/title of the object to export (required)
 --folder-path  ...                # folder where to export the dashboard objects (default './')
---one-file                        # export the dashboard objects to a file
+--one-file                        # export the objects to a file (only for dashboards)
 --force                           # overwrite an existing file on file name conflict
 ```
 
 ## Examples
 
-- **Import objects from file** 
+- **Import a dashboard** 
 ```buildoutcfg
 archimedes
 http://admin:admin@localhost:5601
---import-objects
+--import
 --json-path ./dashboard_git.json
 --force
 ```
 
-- **Import dashboard**
+- **Import a visualization** 
 ```buildoutcfg
 archimedes
 http://admin:admin@localhost:5601
---import-dashboard
+--import
+--json-path ./visualizations/visualization_git_main_numbers.json
+--force
+```
+
+- **Import a dashboard and related objects**
+```buildoutcfg
+archimedes
+http://admin:admin@localhost:5601
+--import
 --json-path ./dashboard_git.json
+--search
+--force
 --visualizations-folder ./visualizations
 --index-patterns-folder ./index-patterns
---force
+--searches-folder ./searches
 ```
 
-- **Export dashboard by ID**
+- **Import a visualization and related objects**
 ```buildoutcfg
 archimedes
 http://admin:admin@localhost:5601
---export-dashboard
---dashboard-id Git
+--import
+--json-path ./visualizations/visualization_git_main_numbers.json
+--search
+--force
+--visualizations-folder ./visualizations
+--index-patterns-folder ./index-patterns
+--searches-folder ./searches
+```
+
+- **Export a dashboard by ID**
+```buildoutcfg
+archimedes
+http://admin:admin@localhost:5601
+--export
+--obj-type dashboard
+--obj-id Git
+--force
+```
+
+- **Export a visualization by ID**
+```buildoutcfg
+archimedes
+http://admin:admin@localhost:5601
+--export
+--obj-type visualization
+--obj-id git_commits_organizations
+--force
 --one-file
---force
-```
-
-- **Export dashboard by title**
-```buildoutcfg
-archimedes
-http://admin:admin@localhost:5601
---export-dashboard
---dashboard-title Git
---force
 ```
 
 
