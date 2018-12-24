@@ -36,28 +36,19 @@ MAX_RETRIES = 5
 
 
 class HttpClient:
+    """Abstract class for HTTP clients.
+
+    Base class to interact with the Dashboard and SavedObjects APIs.
+    It takes care of retrying requests in case connection issues. If
+    Kibana does not send back a response after retrying a request,
+    a RetryError exception is thrown.
+
+    :param base_url: base URL of the Kibana instance
+    """
 
     def __init__(self, base_url):
         self.base_url = base_url
         self._create_http_session()
-
-    def _create_http_session(self):
-        """Create a http session and initialize the retry object."""
-
-        self.session = requests.Session()
-        self.session.headers.update(HEADERS)
-
-        retries = urllib3.util.Retry(total=MAX_RETRIES,
-                                     backoff_factor=SLEEP_TIME)
-
-        self.session.mount('http://', requests.adapters.HTTPAdapter(max_retries=retries))
-        self.session.mount('https://', requests.adapters.HTTPAdapter(max_retries=retries))
-
-    def _close_http_session(self):
-        """Close the http session."""
-
-        if self.session:
-            self.session.keep_alive = False
 
     def fetch(self, url, params=None, headers=HEADERS):
         """Fetch the data from a given URL.
@@ -106,3 +97,21 @@ class HttpClient:
         """
         response = self.session.post(url, params=params, data=json.dumps(data), headers=headers)
         return response.json()
+
+    def _create_http_session(self):
+        """Create a http session and initialize the retry object."""
+
+        self.session = requests.Session()
+        self.session.headers.update(HEADERS)
+
+        retries = urllib3.util.Retry(total=MAX_RETRIES,
+                                     backoff_factor=SLEEP_TIME)
+
+        self.session.mount('http://', requests.adapters.HTTPAdapter(max_retries=retries))
+        self.session.mount('https://', requests.adapters.HTTPAdapter(max_retries=retries))
+
+    def _close_http_session(self):
+        """Close the http session."""
+
+        if self.session:
+            self.session.keep_alive = False
