@@ -27,7 +27,8 @@ import logging
 from operator import xor
 import sys
 
-from archimedes.backend import Archimedes
+from archimedes.archimedes import Archimedes
+from archimedes.clients.dashboard import DASHBOARD
 from archimedes._version import __version__
 
 # Logging formats
@@ -72,29 +73,23 @@ def get_params_parser():
     parser.add_argument('--force', dest='force', action='store_true', help='Force overwrite')
     parser.add_argument('--json-path', dest='json_path', help='Path of the JSON file to import')
 
-    group_import_objects = parser.add_argument_group('Import objects')
-    group_import_objects.add_argument('--no-dashboards', dest='exclude_dashboards', action='store_true', help='Do not import dashboard objects')
-    group_import_objects.add_argument('--no-index-patterns', dest='exclude_index_patterns', action='store_true', help='Do not import index pattern objects')
-    group_import_objects.add_argument('--no-visualizations', dest='exclude_visualizations', action='store_true', help='Do not import visualization objects')
-    group_import_objects.add_argument('--no-searches', dest='exclude_searches', action='store_true', help='Do not import searches objects')
+    group_import = parser.add_argument_group('Import')
+    group_import.add_argument('--search', dest='search', action='store_true', help='Search the objects referenced in the file')
+    group_import.add_argument('--visualizations-folder', dest='visualizations_folder', help='Folder where visualization objects are stored')
+    group_import.add_argument('--searches-folder', dest='searches_folder', help='Folder where search objects are stored')
+    group_import.add_argument('--index-patterns-folder', dest='index_patterns_folder', help='Folder where index pattern objects are stored')
 
-    group_import_dashboard = parser.add_argument_group("Import dashboard")
-    group_import_dashboard.add_argument('--visualizations-folder', dest='visualizations_folder', help='Folder where visualization objects are stored')
-    group_import_dashboard.add_argument('--searches-folder', dest='searches_folder', help='Folder where search objects are stored')
-    group_import_dashboard.add_argument('--index-patterns-folder', dest='index_patterns_folder', help='Folder where index pattern objects are stored')
-
-    group_export = parser.add_argument_group('Export dashboard')
-    group_export.add_argument('--dashboard-id', dest='dashboard_id', help='ID of the dashboard to export')
-    group_export.add_argument('--dashboard-title', dest='dashboard_title', help='Title of the dashboard to export')
+    group_export = parser.add_argument_group('Export')
+    group_export.add_argument('--obj-type', dest='obj_type', help='Type of the object to export')
+    group_export.add_argument('--obj-id', dest='obj_id', help='ID of the object to export')
+    group_export.add_argument('--obj-title', dest='obj_title', help='Title of the object to export')
     group_export.add_argument('--folder-path', dest='folder_path', default=FOLDER_PATH, help='Folder where to export the dashboard objects')
     group_export.add_argument('--one-file', dest='one_file', action='store_true', help='Export the dashboard objects to a file')
 
     exclusive = parser.add_mutually_exclusive_group(required=True)
-    exclusive.add_argument('--import-objects', dest='import_objects', action='store_true',
-                           help='Import Kibana objects from a JSON file')
-    exclusive.add_argument('--import-dashboard', dest='import_dashboard', action='store_true',
-                           help='Import a dashboard from a JSON file and the related visualizations, searches and index patterns located in different folders')
-    exclusive.add_argument('--export-dashboard', dest='export', action='store_true', help='Export dashboard from Kibana')
+    exclusive.add_argument('--import', dest='import_objs', action='store_true',
+                           help='Import Kibana objects from files')
+    exclusive.add_argument('--export', dest='export_objs', action='store_true', help='Export Kibana objects to a file')
 
     if len(sys.argv) == 1:
         parser.print_help()
@@ -115,22 +110,26 @@ def get_params():
         logging.error("Missing Kibana URL")
         error = 1
 
-    if (args.import_objects or args.import_dashboard) and args.export:
-        logging.error("Archimedes requires --import-objects, --import-dashboard or --export")
+    if args.import_objs and args.export_objs:
+        logging.error("Archimedes requires --import or --export")
         error = 1
 
-    if args.import_objects and args.import_dashboard:
-        logging.error("Import requires --import-objects or --import-dashboard")
-        error = 1
-
-    if args.import_objects or args.import_dashboard:
+    if args.import_objs:
         if not args.json_path:
             logging.error("Import requires --json-path")
             error = 1
 
-    elif args.export:
-        if not xor(bool(args.dashboard_id), bool(args.dashboard_title)):
-            logging.error("Export requires --dashboard-id or --dashboard-title")
+    elif args.export_objs:
+        if not args.obj_type:
+            logging.error("Export requires --obj-type")
+            error = 1
+
+        if args.one_file and args.obj_type != DASHBOARD:
+            logging.error("Export one-file param is valid only for objects of type dashboard")
+            error = 1
+
+        if not xor(bool(args.obj_id), bool(args.obj_title)):
+            logging.error("Export requires --obj-id or --obj-title")
             error = 1
 
     if error:
@@ -147,16 +146,13 @@ def main():
 
     archimedes = Archimedes(args.url)
 
-    if args.import_objects:
-        archimedes.import_objects_from_file(args.json_path, args.exclude_dashboards, args.exclude_index_patterns,
-                                            args.exclude_visualizations, args.exclude_searches, args.force)
-    elif args.import_dashboard:
-        archimedes.import_dashboard(args.json_path, args.visualizations_folder, args.searches_folder,
-                                    args.index_patterns_folder, args.force)
-    elif args.export and args.dashboard_id:
-        archimedes.export_dashboard_by_id(args.dashboard_id, args.folder_path, args.one_file, args.force)
-    elif args.export and args.dashboard_title:
-        archimedes.export_dashboard_by_title(args.dashboard_title, args.folder_path, args.one_file, args.force)
+    if args.import_objs:
+        archimedes.import_from_file(args.json_path, args.search, args.visualizations_folder, args.searches_folder,
+                                 args.index_patterns_folder, args.force)
+    elif args.export_objs and args.obj_id:
+        archimedes.export_by_id(args.obj_type, args.obj_id, args.folder_path, args.one_file, args.force)
+    elif args.export_objs and args.obj_title:
+        archimedes.export_by_title(args.obj_type, args.obj_title, args.folder_path, args.one_file, args.force)
 
     logging.info("Archimedes has finished.")
 

@@ -24,6 +24,8 @@ import json
 import logging
 import os
 
+from archimedes.errors import NotFoundError
+
 logger = logging.getLogger(__name__)
 
 
@@ -76,7 +78,8 @@ def find_file(folder_path, target_name):
             break
 
     if not found:
-        logger.error("File %s not found in %s", target_name, folder_path)
-        raise FileNotFoundError
+        cause = "File %s not found in %s" % (target_name, folder_path)
+        logger.error(cause)
+        raise NotFoundError(cause=cause)
 
     return found
