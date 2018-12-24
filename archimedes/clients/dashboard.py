@@ -24,7 +24,7 @@ import logging
 
 import requests
 
-from .client import KibanaClient
+from archimedes.clients.http import KibanaClient
 
 from grimoirelab_toolkit.uris import urijoin
 
@@ -48,7 +48,7 @@ class SavedObjects(KibanaClient):
     API_SEARCH_COMMAND = '_search'
 
     def __init__(self, base_url):
-        self.base_url = base_url
+        super().__init__(base_url)
 
     def find_by_title(self, obj_type, obj_title):
         """Find an object by its type and title.
@@ -209,6 +209,8 @@ class Dashboard(KibanaClient):
     def __init__(self, base_url):
         self.base_url = base_url
         self.saved_objects = SavedObjects(self.base_url)
+
+    def export_object(self, ref_type, obj_type, obj_ref):
 
     def export_dashboard_by_title(self, dashboard_title):
         """Export a dashboard identified by its title.

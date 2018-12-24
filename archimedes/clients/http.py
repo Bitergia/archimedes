@@ -23,17 +23,43 @@
 import json
 
 import requests
+import urllib3.util
+
 
 HEADERS = {
     "Content-Type": "application/json",
     "kbn-xsrf": "true"
 }
 
+SLEEP_TIME = 1
+MAX_RETRIES = 5
 
-class KibanaClient:
 
-    @staticmethod
-    def fetch(url, params=None, headers=HEADERS):
+class HttpClient:
+
+    def __init__(self, base_url):
+        self.base_url = base_url
+        self._create_http_session()
+
+    def _create_http_session(self):
+        """Create a http session and initialize the retry object."""
+
+        self.session = requests.Session()
+        self.session.headers.update(HEADERS)
+
+        retries = urllib3.util.Retry(total=MAX_RETRIES,
+                                     backoff_factor=SLEEP_TIME)
+
+        self.session.mount('http://', requests.adapters.HTTPAdapter(max_retries=retries))
+        self.session.mount('https://', requests.adapters.HTTPAdapter(max_retries=retries))
+
+    def _close_http_session(self):
+        """Close the http session."""
+
+        if self.session:
+            self.session.keep_alive = False
+
+    def fetch(self, url, params=None, headers=HEADERS):
         """Fetch the data from a given URL.
 
         :param url: link to the resource
@@ -42,17 +68,10 @@ class KibanaClient:
 
         :returns a response object
         """
-        response = requests.get(url, params=params, headers=headers)
-
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as error:
-            raise error
-
+        response = self.session.get(url, params=params, headers=headers)
         return response.json()
 
-    @staticmethod
-    def delete(url, headers=HEADERS):
+    def delete(self, url, headers=HEADERS):
         """Delete the target object pointed by the url.
 
         :param url: link to the resource
@@ -60,17 +79,10 @@ class KibanaClient:
 
         :returns a response object
         """
-        response = requests.delete(url, headers=headers)
-
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as error:
-            raise error
-
+        response = self.session.delete(url, headers=headers)
         return response.json()
 
-    @staticmethod
-    def put(url, data, headers=HEADERS):
+    def put(self, url, data, headers=HEADERS):
         """Update the target object pointed by the url.
 
         :param url: link to the resource
@@ -79,17 +91,10 @@ class KibanaClient:
 
         :returns a response object
         """
-        response = requests.put(url, data=json.dumps(data), headers=headers)
-
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as error:
-            raise error
-
+        response = self.session.put(url, data=json.dumps(data), headers=headers)
         return response.json()
 
-    @staticmethod
-    def post(url, data, params, headers=HEADERS):
+    def post(self, url, data, params, headers=HEADERS):
         """Update the target object pointed by the url.
 
         :param url: link to the resource
@@ -99,11 +104,5 @@ class KibanaClient:
 
         :returns a response object
         """
-        response = requests.post(url, params=params, data=json.dumps(data), headers=headers)
-
-        try:
-            response.raise_for_status()
-        except requests.exceptions.HTTPError as error:
-            raise error
-
+        response = self.session.post(url, params=params, data=json.dumps(data), headers=headers)
         return response.json()
