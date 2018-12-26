@@ -217,8 +217,12 @@ class Archimedes:
 
         if 'kibanaSavedObjectMeta' in vis_content['attributes'] \
                 and 'searchSourceJSON' in vis_content['attributes']['kibanaSavedObjectMeta'] and index_patterns_folder:
-            index_content = json.loads(vis_content['attributes']['kibanaSavedObjectMeta']['searchSourceJSON'])
-            index_pattern_id = index_content['index']
+            search_content = json.loads(vis_content['attributes']['kibanaSavedObjectMeta']['searchSourceJSON'])
+            if 'index' not in search_content:
+                logger.info("No index pattern declared for visualization %s", visualization_path)
+                return visualization_files
+
+            index_pattern_id = search_content['index']
             ip_path = find_file(index_patterns_folder, get_file_name(INDEX_PATTERN, index_pattern_id))
             if ip_path not in visualization_files:
                 visualization_files.append(ip_path)
