@@ -30,6 +30,7 @@ from archimedes.clients.dashboard import (DASHBOARD,
                                           INDEX_PATTERN,
                                           SEARCH,
                                           VISUALIZATION)
+from archimedes.errors import TypeObjectError
 from archimedes.utils import (find_file,
                               load_json,
                               save_to_file)
@@ -180,11 +181,19 @@ class Archimedes:
             dashboard_files.append(dashboard_path)
             return dashboard_files
 
-        visualizations = json.loads(dash_content['attributes']['panelsJSON'])
-        for vis in visualizations:
-            vis_path = find_file(visualizations_folder, get_file_name(VISUALIZATION, vis['id']))
-            vis_files = self._find_visualization_files(vis_path, searches_folder, index_patterns_folder)
-            [dashboard_files.append(v) for v in vis_files if v not in dashboard_files]
+        panels = json.loads(dash_content['attributes']['panelsJSON'])
+        for panel in panels:
+            if panel['type'] == VISUALIZATION:
+                panel_path = find_file(visualizations_folder, get_file_name(VISUALIZATION, panel['id']))
+                panel_files = self._find_visualization_files(panel_path, searches_folder, index_patterns_folder)
+            elif panel['type'] == SEARCH:
+                panel_files = [find_file(searches_folder, get_file_name(SEARCH, panel['id']))]
+            else:
+                cause = "Panel type %s not handled" % (panel['type'])
+                logger.error(cause)
+                raise TypeObjectError(cause=cause)
+
+            [dashboard_files.append(v) for v in panel_files if v not in dashboard_files]
 
         dashboard_files.append(dashboard_path)
 
