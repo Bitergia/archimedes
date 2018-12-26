@@ -65,6 +65,12 @@ class SavedObjects(HttpClient):
                     params['page'] = params['page'] + 1
                     continue
 
+            if 'statusCode' in r_json:
+                logger.error("Impossible to retrieve objects at page %s, url %s, %s",
+                             params['page'], url, r_json['message'])
+                params['page'] = params['page'] + 1
+                continue
+
             if 'saved_objects' not in r_json or not r_json['saved_objects']:
                 break
 
