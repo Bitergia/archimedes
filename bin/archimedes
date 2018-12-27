@@ -148,7 +148,7 @@ def main():
 
     if args.import_objs:
         archimedes.import_from_file(args.json_path, args.search, args.visualizations_folder, args.searches_folder,
-                                 args.index_patterns_folder, args.force)
+                                    args.index_patterns_folder, args.force)
     elif args.export_objs and args.obj_id:
         archimedes.export_by_id(args.obj_type, args.obj_id, args.folder_path, args.one_file, args.force)
     elif args.export_objs and args.obj_title:
