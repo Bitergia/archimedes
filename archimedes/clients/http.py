@@ -50,6 +50,9 @@ class HttpClient:
         self.base_url = base_url
         self._create_http_session()
 
+    def __del__(self):
+        self._close_http_session()
+
     def fetch(self, url, params=None, headers=HEADERS):
         """Fetch the data from a given URL.
 
