@@ -67,7 +67,10 @@ setup(name="archimedes",
           'Programming Language :: Python :: 3.4',
           'Programming Language :: Python :: 3.5'],
       keywords="development repositories analytics",
-      packages=['archimedes'],
+      packages=[
+          'archimedes',
+          'archimedes.clients'
+      ],
       python_requires='>=3.4',
       setup_requires=['wheel'],
       extras_require={},
