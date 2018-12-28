@@ -35,8 +35,8 @@ Currently, Archimedes is able to perform the following operations
 archimedes
 http://...                        # Kibana URL (required)
 --import                          # action (required)
---file-path ...                   # path of the JSON file that include Kibana objects (required)
---search                          # search and import also the objects referenced the input file
+--json-path ...                   # path of the JSON file that include Kibana objects (required)
+--find                            # find and import also the objects referenced in the input file
 --visualizations-folder ...       # folder where visualization objects are stored
 --searches_folder ...             # folder where searches objects are stored
 --index-patterns-folder ...       # folder where index pattern objects are stored
@@ -55,10 +55,12 @@ http://...                        # Kibana URL (required)
 archimedes
 http://...                        # Kibana URL (required)
 --export                          # action (required)
+--obj-type ...                    # Type of the object to export (required)
 --obj-id/title ...                # ID/title of the object to export (required)
 --folder-path  ...                # folder where to export the dashboard objects (default './')
 --one-file                        # export the objects to a file (only for dashboards)
 --force                           # overwrite an existing file on file name conflict
+--index-pattern                   # export the index pattern related to the target object
 ```
 
 ## Examples
@@ -87,7 +89,7 @@ archimedes
 http://admin:admin@localhost:5601
 --import
 --json-path ./dashboard_git.json
---search
+--find
 --force
 --visualizations-folder ./visualizations
 --index-patterns-folder ./index-patterns
@@ -100,7 +102,7 @@ archimedes
 http://admin:admin@localhost:5601
 --import
 --json-path ./visualizations/visualization_git_main_numbers.json
---search
+--find
 --force
 --visualizations-folder ./visualizations
 --index-patterns-folder ./index-patterns
@@ -117,7 +119,7 @@ http://admin:admin@localhost:5601
 --force
 ```
 
-- **Export a visualization by ID**
+- **Export a visualization by ID and its index pattern**
 ```buildoutcfg
 archimedes
 http://admin:admin@localhost:5601
@@ -125,7 +127,7 @@ http://admin:admin@localhost:5601
 --obj-type visualization
 --obj-id git_commits_organizations
 --force
---one-file
+--index-pattern
 ```
 
 
