@@ -37,13 +37,25 @@ class BaseError(Exception):
         return self.msg
 
 
+class FileTypeError(BaseError):
+    """Error for handling unknown file types"""
+
+    message = "%(cause)s"
+
+
+class ExportError(BaseError):
+    """Error for handling export errors"""
+
+    message = "%(cause)s"
+
+
 class NotFoundError(BaseError):
     """Error for handling not found errors"""
 
     message = "%(cause)s"
 
 
-class TypeObjectError(BaseError):
-    """Error for handling unknown type objects"""
+class ObjectTypeError(BaseError):
+    """Error for handling unknown object types"""
 
     message = "%(cause)s"
