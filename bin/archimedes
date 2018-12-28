@@ -28,7 +28,8 @@ from operator import xor
 import sys
 
 from archimedes.archimedes import Archimedes
-from archimedes.clients.dashboard import DASHBOARD
+from archimedes.clients.dashboard import (DASHBOARD,
+                                          INDEX_PATTERN)
 from archimedes._version import __version__
 
 # Logging formats
@@ -74,7 +75,7 @@ def get_params_parser():
     parser.add_argument('--json-path', dest='json_path', help='Path of the JSON file to import')
 
     group_import = parser.add_argument_group('Import')
-    group_import.add_argument('--search', dest='search', action='store_true', help='Search the objects referenced in the file')
+    group_import.add_argument('--find', dest='find', action='store_true', help='Find and load the objects referenced in the file')
     group_import.add_argument('--visualizations-folder', dest='visualizations_folder', help='Folder where visualization objects are stored')
     group_import.add_argument('--searches-folder', dest='searches_folder', help='Folder where search objects are stored')
     group_import.add_argument('--index-patterns-folder', dest='index_patterns_folder', help='Folder where index pattern objects are stored')
@@ -85,6 +86,7 @@ def get_params_parser():
     group_export.add_argument('--obj-title', dest='obj_title', help='Title of the object to export')
     group_export.add_argument('--folder-path', dest='folder_path', default=FOLDER_PATH, help='Folder where to export the dashboard objects')
     group_export.add_argument('--one-file', dest='one_file', action='store_true', help='Export the dashboard objects to a file')
+    group_export.add_argument('--index-pattern', dest='index_pattern', action='store_true', help='Export the index pattern related to the target object')
 
     exclusive = parser.add_mutually_exclusive_group(required=True)
     exclusive.add_argument('--import', dest='import_objs', action='store_true',
@@ -128,12 +130,15 @@ def get_params():
             logging.error("Export one-file param is valid only for objects of type dashboard")
             error = 1
 
+        if args.obj_type == INDEX_PATTERN and args.index_pattern:
+            logging.error("Export index-pattern param is not valid for index-pattern objects")
+            error = 1
+
         if not xor(bool(args.obj_id), bool(args.obj_title)):
             logging.error("Export requires --obj-id or --obj-title")
             error = 1
 
     if error:
-        parser.print_help()
         sys.exit(1)
 
     return args
@@ -147,12 +152,17 @@ def main():
     archimedes = Archimedes(args.url)
 
     if args.import_objs:
-        archimedes.import_from_file(args.json_path, args.search, args.visualizations_folder, args.searches_folder,
-                                    args.index_patterns_folder, args.force)
+        archimedes.import_from_file(file_path=args.json_path, find=args.find,
+                                    visualizations_folder=args.visualizations_folder,
+                                    searches_folder=args.searches_folder,
+                                    index_patterns_folder=args.index_patterns_folder,
+                                    force=args.force)
     elif args.export_objs and args.obj_id:
-        archimedes.export_by_id(args.obj_type, args.obj_id, args.folder_path, args.one_file, args.force)
+        archimedes.export(obj_type=args.obj_type, obj_id=args.obj_id, folder_path=args.folder_path,
+                          one_file=args.one_file, force=args.force, index_pattern=args.index_pattern)
     elif args.export_objs and args.obj_title:
-        archimedes.export_by_title(args.obj_type, args.obj_title, args.folder_path, args.one_file, args.force)
+        archimedes.export(obj_type=args.obj_type, obj_title=args.obj_title, folder_path=args.folder_path,
+                          one_file=args.one_file, force=args.force, index_pattern=args.index_pattern)
 
     logging.info("Archimedes has finished.")
 

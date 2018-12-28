@@ -25,12 +25,12 @@ import json
 import os
 from pathlib import Path
 
-from archimedes.clients.kibana import Kibana
+from archimedes.kibana import Kibana
 from archimedes.clients.dashboard import (DASHBOARD,
                                           INDEX_PATTERN,
                                           SEARCH,
                                           VISUALIZATION)
-from archimedes.errors import TypeObjectError
+from archimedes.errors import ExportError, FileTypeError, ObjectTypeError
 from archimedes.utils import (find_file,
                               load_json,
                               save_to_file)
@@ -88,7 +88,7 @@ class Archimedes:
         self.url = url
         self.kibana = Kibana(url)
 
-    def import_from_file(self, file_path, search=False, visualizations_folder=None, searches_folder=None,
+    def import_from_file(self, file_path, find=False, visualizations_folder=None, searches_folder=None,
                          index_patterns_folder=None, force=False):
         """Import Kibana objects from a JSON file. If `search` is set to true, it also loads the related objects
         (i.e., visualizations, search and index pattern) located in different folders.
@@ -97,7 +97,7 @@ class Archimedes:
         the parameter `force` to true.
 
         :param file_path: path of the target file
-        :param search: search the objects referenced in the file
+        :param find: find the objects referenced in the file
         :param visualizations_folder: folder where visualization objects are stored
         :param searches_folder: folder where search objects are stored
         :param index_patterns_folder: folder where index pattern objects are stored
@@ -109,56 +109,52 @@ class Archimedes:
             logger.warning("File %s is empty", file_path)
             return
 
-        if not search:
+        if not find:
             self.__import_file(file_path, force)
             return
 
         file_type = Path(file_path).name.split("_")[0].lower()
 
         if file_type == DASHBOARD:
-            dashboard_files = self._find_dashboard_files(file_path, visualizations_folder,
-                                                         searches_folder, index_patterns_folder)
-            self.__import_files(dashboard_files, force=force)
+            files = self._find_dashboard_files(file_path, visualizations_folder,
+                                               searches_folder, index_patterns_folder)
         elif file_type == VISUALIZATION:
-            visualization_files = self._find_visualization_files(file_path, searches_folder, index_patterns_folder)
-            self.__import_files(visualization_files, force=force)
+            files = self._find_visualization_files(file_path, searches_folder, index_patterns_folder)
+        elif file_type == SEARCH:
+            files = self._find_search_files(file_path, index_patterns_folder)
         else:
-            logger.error("File type %s not known", file_type)
-            return
+            cause = "File type %s not known" % file_type
+            logger.error(cause)
+            raise FileTypeError(cause=cause)
 
-    def export_by_id(self, obj_type, obj_id, folder_path, one_file=False, force=False):
-        """Locate an object based on its type and ID in Kibana and export it to a `folder_path`. The exported data
-        can be saved in a single file (`one_file` = True) or divided into several folders according
-        to the type of the objects exported (i.e., visualizations, searches and index patterns).
+        self.__import_files(files, force=force)
+
+    def export(self, obj_type, folder_path, obj_id=None, obj_title=None, one_file=False, force=False, index_pattern=False):
+        """Locate an object based on its type and ID or title in Kibana and export it to a `folder_path`.
+        The exported data can be saved in a single file (`one_file` = True) or divided into several folders
+        according to the type of the objects exported (i.e., visualizations, searches and index patterns).
 
         The method can overwrite previous versions of existing files by setting the
         parameter `force` to true.
 
         :param obj_type: type of the target object
         :param obj_id: ID of the target object
-        :param folder_path: folder where to export the dashboard objects
-        :param one_file: export the dashboard objects to a file
-        :param force: overwrite an existing file on file name conflict
-        """
-        obj = self.kibana.export_by_id(obj_type, obj_id)
-        self.__export_object(obj, obj_type, folder_path, one_file, force)
-
-    def export_by_title(self, obj_type, obj_title, folder_path, one_file=False, force=False):
-        """Locate a dashboard by its title in Kibana and export it to a `folder_path`. The exported data
-        can be saved in a single file (`one_file` = True) or divided into several folders according to the
-        type of the objects exported (i.e., visualizations, searches and index patterns).
-
-        The method can overwrite previous versions of existing files by setting the
-        parameter `force` to true.
-
-        :param obj_type: type of the target object
         :param obj_title: title of the target object
         :param folder_path: folder where to export the dashboard objects
         :param one_file: export the dashboard objects to a file
         :param force: overwrite an existing file on file name conflict
+        :param index_pattern: export also the index pattern
         """
-        obj = self.kibana.export_by_title(obj_type, obj_title)
-        self.__export_object(obj, obj_type, folder_path, one_file, force)
+        if obj_id:
+            obj = self.kibana.export_by_id(obj_type, obj_id)
+        elif obj_title:
+            obj = self.kibana.export_by_title(obj_type, obj_title)
+        else:
+            cause = "Object id and title cannot be null"
+            logger.error(cause)
+            raise ExportError(cause=cause)
+
+        self.__export_objects(obj, obj_type, folder_path, one_file, force, index_pattern)
 
     def _find_dashboard_files(self, dashboard_path, visualizations_folder=None,
                               searches_folder=None, index_patterns_folder=None):
@@ -187,19 +183,29 @@ class Archimedes:
                 panel_path = find_file(visualizations_folder, get_file_name(VISUALIZATION, panel['id']))
                 panel_files = self._find_visualization_files(panel_path, searches_folder, index_patterns_folder)
             elif panel['type'] == SEARCH:
-                panel_files = [find_file(searches_folder, get_file_name(SEARCH, panel['id']))]
+                panel_path = find_file(searches_folder, get_file_name(SEARCH, panel['id']))
+                panel_files = self._find_search_files(panel_path, index_patterns_folder)
             else:
                 cause = "Panel type %s not handled" % (panel['type'])
                 logger.error(cause)
-                raise TypeObjectError(cause=cause)
+                raise ObjectTypeError(cause=cause)
 
-            [dashboard_files.append(v) for v in panel_files if v not in dashboard_files]
+            [dashboard_files.append(p) for p in panel_files if p not in dashboard_files]
 
         dashboard_files.append(dashboard_path)
 
         return dashboard_files
 
     def _find_visualization_files(self, visualization_path, searches_folder=None, index_patterns_folder=None):
+        """Find the files containing the objects referenced in `visualization_path`
+        by looking into `searches_folder` and `index_patterns_folder`.
+
+        :param visualization_path: path of the visualization to import
+        :param searches_folder: folder where searches objects are stored
+        :param index_patterns_folder: folder where index pattern objects are stored
+
+        :returns the list of files containing the objects that compose a visualization
+        """
         visualization_files = []
         vis_content = load_json(visualization_path)
 
@@ -215,20 +221,53 @@ class Archimedes:
             if search_path not in visualization_files:
                 visualization_files.append(search_path)
 
-        if 'kibanaSavedObjectMeta' in vis_content['attributes'] \
-                and 'searchSourceJSON' in vis_content['attributes']['kibanaSavedObjectMeta'] and index_patterns_folder:
-            search_content = json.loads(vis_content['attributes']['kibanaSavedObjectMeta']['searchSourceJSON'])
-            if 'index' not in search_content:
-                logger.info("No index pattern declared for visualization %s", visualization_path)
-                return visualization_files
+        search_files = self._find_search_files(visualization_path, index_patterns_folder)
+        [visualization_files.append(sf) for sf in search_files if sf not in visualization_files]
 
-            index_pattern_id = search_content['index']
-            ip_path = find_file(index_patterns_folder, get_file_name(INDEX_PATTERN, index_pattern_id))
-            if ip_path not in visualization_files:
-                visualization_files.append(ip_path)
-
-        visualization_files.append(visualization_path)
         return visualization_files
+
+    def _find_search_files(self, search_path, index_patterns_folder=None):
+        """Find the files containing the objects referenced in `search_path`
+        by looking into `index_patterns_folder`.
+
+        :param index_patterns_folder: folder where index pattern objects are stored
+
+        :returns the list of files containing the objects that compose a search
+        """
+        search_files = []
+        search_content = load_json(search_path)
+
+        index_pattern_id = self.__find_index_pattern(search_content)
+        if not index_pattern_id:
+            logger.info("No index pattern declared for search %s", search_path)
+            search_files.append(search_path)
+            return search_files
+
+        ip_path = find_file(index_patterns_folder, get_file_name(INDEX_PATTERN, index_pattern_id))
+        if ip_path not in search_files:
+            search_files.append(ip_path)
+
+        search_files.append(search_path)
+
+        return search_files
+
+    def __find_index_pattern(self, obj):
+        """Find the index pattern id in an `obj`.
+
+        :param obj: Kibana object
+
+        :returns the index pattern id
+        """
+        index_pattern = None
+        if 'kibanaSavedObjectMeta' in obj['attributes'] \
+                and 'searchSourceJSON' in obj['attributes']['kibanaSavedObjectMeta']:
+            search_content = json.loads(obj['attributes']['kibanaSavedObjectMeta']['searchSourceJSON'])
+            if 'index' not in search_content:
+                return index_pattern
+
+            index_pattern = search_content['index']
+
+        return index_pattern
 
     def __import_files(self, file_paths, force=False):
         """Import dashboards, index patterns, visualizations and searches from a list of JSON files to Kibana.
@@ -271,7 +310,7 @@ class Archimedes:
         logger.info("Importing %s", file_path)
         kibana.import_objects(objects, force)
 
-    def __export_object(self, data, obj_type, folder_path, one_file, force):
+    def __export_objects(self, data, obj_type, folder_path, one_file, force, index_pattern=False):
         """Export Kibana objects to a `folder_path`. The exported data
         can be saved in a single file (`one_file` = True) or divided into several folders
         according to the type of the objects exported (e.g., visualizations, searches
@@ -280,10 +319,12 @@ class Archimedes:
         The method can overwrite previous versions of existing files by setting the
         parameter `force` to true.
 
-        :param content: title of the dashboard to export
+        :param data: data to export (it can be a single object or a list)
+        :param obj_type: type of the target object
         :param folder_path: folder where to export the dashboard objects
         :param one_file: export the dashboard objects to a file
         :param force: overwrite an existing file on file name conflict
+        :param index_pattern: export also the index pattern
         """
         if one_file and obj_type == DASHBOARD:
             logger.info("Exporting to one file to folder %s", folder_path)
@@ -301,3 +342,10 @@ class Archimedes:
             folder = get_folder_path(folder_path, obj['type'])
             file_path = os.path.join(folder, get_file_name(obj['type'], obj['id']))
             save_to_file(obj, file_path, force)
+
+            if index_pattern:
+                index_pattern_id = self.__find_index_pattern(obj)
+                index_pattern_obj = self.kibana.find_by_id(INDEX_PATTERN, index_pattern_id)
+                folder = get_folder_path(folder_path, INDEX_PATTERN)
+                file_path = os.path.join(folder, get_file_name(INDEX_PATTERN, index_pattern_id))
+                save_to_file(index_pattern_obj, file_path, force)
