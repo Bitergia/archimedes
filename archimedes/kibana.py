@@ -28,17 +28,15 @@ from archimedes.clients.dashboard import (Dashboard,
                                           SEARCH,
                                           VISUALIZATION)
 from archimedes.clients.saved_objects import SavedObjects
-from archimedes.errors import NotFoundError, TypeObjectError
+from archimedes.errors import NotFoundError, ObjectTypeError
 from grimoirelab_toolkit.uris import urijoin
 
 logger = logging.getLogger(__name__)
 
 
 class Kibana:
-    """Kibana client.
-
-    This class defines operations performed against the Dashboard and the SavedObjects API, such
-    as exporting and importing objects.
+    """This class defines operations performed against the Dashboard and the SavedObjects APIs, such
+    as exporting and importing objects as well as searching objects by ID or title.
 
     :param base_url: the Kibana URL
     """
@@ -61,7 +59,7 @@ class Kibana:
         else:
             cause = "Unknown type %s" % obj_type
             logger.error(cause)
-            raise TypeObjectError(cause=cause)
+            raise ObjectTypeError(cause=cause)
 
         if not obj:
             cause = "Impossible to export %s with id %s, not found" % (obj_type, obj_id)
@@ -89,7 +87,7 @@ class Kibana:
         elif obj_type not in [INDEX_PATTERN, SEARCH, VISUALIZATION]:
             cause = "Unknown type %s" % obj_type
             logger.error(cause)
-            raise TypeObjectError(cause=cause)
+            raise ObjectTypeError(cause=cause)
 
         return obj
 
@@ -99,7 +97,6 @@ class Kibana:
         :param objects: list of objects to import
         :param force: overwrite any existing objects on ID conflict
         """
-        logger.info("Importing %s object(s)", len(objects))
         self.dashboard.import_objects(objects, force=force)
 
     def find_by_title(self, obj_type, obj_title):
@@ -120,7 +117,9 @@ class Kibana:
                     break
 
         if not found_obj:
-            logger.warning("No %s found with title: %s", obj_type, obj_title)
+            cause = "No %s found with title: %s" % (obj_type, obj_title)
+            logger.error(cause)
+            raise NotFoundError(cause=cause)
 
         return found_obj
 
@@ -142,6 +141,8 @@ class Kibana:
                     break
 
         if not found_obj:
-            logger.warning("No %s found with title: %s", obj_type, obj_id)
+            cause = "No %s found with ID: %s" % (obj_type, obj_id)
+            logger.error(cause)
+            raise NotFoundError(cause=cause)
 
         return found_obj
