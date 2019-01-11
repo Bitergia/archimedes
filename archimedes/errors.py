@@ -37,6 +37,12 @@ class BaseError(Exception):
         return self.msg
 
 
+class ImportError(BaseError):
+    """Error for handling import errors"""
+
+    message = "%(cause)s"
+
+
 class FileTypeError(BaseError):
     """Error for handling unknown file types"""
 
