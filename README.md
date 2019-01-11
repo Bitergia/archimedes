@@ -23,96 +23,93 @@ $> python3 setup.py install
 
 Currently, Archimedes is able to perform the following operations
 
-- **Import objects from file** 
-
-  Import dashboards, index patterns, visualizations and searches from a JSON file to Kibana. The JSON file 
-  should be either a list of objects or a dict having a key _objects_ with a list of objects 
-  as value (e.g,, {'objects': [...]}.
+- **Import objects from disk** 
+    
+  Locate an object based on its type and ID or title on disk and import it to Kibana. If 
+  `find` is set to true, it also loads the related objects (i.e., visualizations, 
+  search and index pattern).
   
   The operation can overwrite previous versions of existing objects.
   
 ```buildoutcfg
 archimedes
 http://...                        # Kibana URL (required)
---import                          # action (required)
---json-path ...                   # path of the JSON file that include Kibana objects (required)
---find                            # find and import also the objects referenced in the input file
---visualizations-folder ...       # folder where visualization objects are stored
---searches_folder ...             # folder where searches objects are stored
---index-patterns-folder ...       # folder where index pattern objects are stored
+...                               # Archimedes folder (required)
+--obj-type ...                    # Type of the object to import (required)
+--obj-id/title ...                # ID/title of the object to import (required)
+--find                            # find and import also the objects referenced in the input object
 --force                           # overwrite any existing objects on ID conflict
 ```
   
-- **Export object by ID or title**
+- **Export objects to disk**
 
   Locate an object by its ID or title in Kibana and export it to a folder path. The exported data 
-  can be saved in a single file or divided into several folders according 
-  to the type of the objects exported (i.e., visualizations, searches and index patterns).
+  is divided into several folders according to the type of the objects exported 
+  (i.e., visualizations, searches and index patterns).
 
   The operation can overwrite previous versions of existing files.
   
 ```buildoutcfg
 archimedes
 http://...                        # Kibana URL (required)
+...                               # Archimedes folder (required)
 --export                          # action (required)
 --obj-type ...                    # Type of the object to export (required)
 --obj-id/title ...                # ID/title of the object to export (required)
---folder-path  ...                # folder where to export the dashboard objects (default './')
---one-file                        # export the objects to a file (only for dashboards)
 --force                           # overwrite an existing file on file name conflict
 --index-pattern                   # export the index pattern related to the target object
 ```
 
 ## Examples
 
-- **Import a dashboard** 
+- **Import a dashboard by ID, forcing the overwriting** 
 ```buildoutcfg
 archimedes
 http://admin:admin@localhost:5601
+/home
 --import
---json-path ./dashboard_git.json
+--obj-type dashboard
+--obj-id git
 --force
 ```
 
-- **Import a visualization** 
+- **Import a visualization by ID** 
 ```buildoutcfg
 archimedes
 http://admin:admin@localhost:5601
+/home
 --import
---json-path ./visualizations/visualization_git_main_numbers.json
---force
+--obj-type visualization
+--obj-id git_main_numbers
 ```
 
-- **Import a dashboard and related objects**
+- **Import a dashboard by content title and related objects**
 ```buildoutcfg
 archimedes
 http://admin:admin@localhost:5601
+/home
 --import
---json-path ./dashboard_git.json
+--obj-type dashboard
+--obj-title Git
 --find
 --force
---visualizations-folder ./visualizations
---index-patterns-folder ./index-patterns
---searches-folder ./searches
 ```
 
-- **Import a visualization and related objects**
+- **Import a visualization by ID and related objects**
 ```buildoutcfg
 archimedes
 http://admin:admin@localhost:5601
+/home
 --import
---json-path ./visualizations/visualization_git_main_numbers.json
---find
---force
---visualizations-folder ./visualizations
---index-patterns-folder ./index-patterns
---searches-folder ./searches
+--obj-type visualization
+--obj-id git_main_numbers
 ```
 
 - **Export a dashboard by ID**
 ```buildoutcfg
 archimedes
 http://admin:admin@localhost:5601
+/home
 --export
 --obj-type dashboard
 --obj-id Git
@@ -123,6 +120,7 @@ http://admin:admin@localhost:5601
 ```buildoutcfg
 archimedes
 http://admin:admin@localhost:5601
+/home
 --export
 --obj-type visualization
 --obj-id git_commits_organizations
