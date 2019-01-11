@@ -35,8 +35,9 @@ logger = logging.getLogger(__name__)
 
 
 class Kibana:
-    """This class defines operations performed against the Dashboard and the SavedObjects APIs, such
-    as exporting and importing objects as well as searching objects by ID or title.
+    """This class defines operations performed against the Dashboard and
+    the SavedObjects APIs, such as exporting and importing objects as well
+    as searching objects by ID or title.
 
     :param base_url: the Kibana URL
     """
