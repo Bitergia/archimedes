@@ -28,8 +28,7 @@ from operator import xor
 import sys
 
 from archimedes.archimedes import Archimedes
-from archimedes.clients.dashboard import (DASHBOARD,
-                                          INDEX_PATTERN)
+from archimedes.clients.dashboard import INDEX_PATTERN
 from archimedes._version import __version__
 
 # Logging formats
@@ -39,9 +38,6 @@ ARCHIMEDES_USAGE_MSG = "usage: archimedes [options]"
 ARCHIMEDES_DESC_MSG = "Import and export Kibana dashboards, visualizations, searches and index patterns"
 ARCHIMEDES_VERSION_MSG = \
 """%(prog)s """  + __version__
-
-
-FOLDER_PATH = './'
 
 
 def config_logging(debug):
@@ -71,22 +67,19 @@ def get_params_parser():
                         help=argparse.SUPPRESS)
 
     parser.add_argument('url', help='Kibana URL')
+    parser.add_argument('root_path', help='Archimedes folder where objects are stored')
+    parser.add_argument('--obj-type', dest='obj_type', help='Type of the object to import/export')
+    parser.add_argument('--obj-id', dest='obj_id', help='ID of the object to import/export')
+    parser.add_argument('--obj-title', dest='obj_title', help='Title of the object to import/export')
     parser.add_argument('--force', dest='force', action='store_true', help='Force overwrite')
-    parser.add_argument('--json-path', dest='json_path', help='Path of the JSON file to import')
 
     group_import = parser.add_argument_group('Import')
-    group_import.add_argument('--find', dest='find', action='store_true', help='Find and load the objects referenced in the file')
-    group_import.add_argument('--visualizations-folder', dest='visualizations_folder', help='Folder where visualization objects are stored')
-    group_import.add_argument('--searches-folder', dest='searches_folder', help='Folder where search objects are stored')
-    group_import.add_argument('--index-patterns-folder', dest='index_patterns_folder', help='Folder where index pattern objects are stored')
+    group_import.add_argument('--find', dest='find', action='store_true',
+                              help='Find and load the objects referenced in the file')
 
     group_export = parser.add_argument_group('Export')
-    group_export.add_argument('--obj-type', dest='obj_type', help='Type of the object to export')
-    group_export.add_argument('--obj-id', dest='obj_id', help='ID of the object to export')
-    group_export.add_argument('--obj-title', dest='obj_title', help='Title of the object to export')
-    group_export.add_argument('--folder-path', dest='folder_path', default=FOLDER_PATH, help='Folder where to export the dashboard objects')
-    group_export.add_argument('--one-file', dest='one_file', action='store_true', help='Export the dashboard objects to a file')
-    group_export.add_argument('--index-pattern', dest='index_pattern', action='store_true', help='Export the index pattern related to the target object')
+    group_export.add_argument('--index-pattern', dest='index_pattern', action='store_true',
+                              help='Export the index pattern related to the target object')
 
     exclusive = parser.add_mutually_exclusive_group(required=True)
     exclusive.add_argument('--import', dest='import_objs', action='store_true',
@@ -112,30 +105,25 @@ def get_params():
         logging.error("Missing Kibana URL")
         error = 1
 
+    if not args.root_path:
+        logging.error("Missing root path")
+        error = 1
+
     if args.import_objs and args.export_objs:
         logging.error("Archimedes requires --import or --export")
         error = 1
 
-    if args.import_objs:
-        if not args.json_path:
-            logging.error("Import requires --json-path")
-            error = 1
+    if not args.obj_type:
+        logging.error("Archimedes requires --obj-type")
+        error = 1
 
-    elif args.export_objs:
-        if not args.obj_type:
-            logging.error("Export requires --obj-type")
-            error = 1
+    if not xor(bool(args.obj_id), bool(args.obj_title)):
+        logging.error("Archimedes requires --obj-id or --obj-title")
+        error = 1
 
-        if args.one_file and args.obj_type != DASHBOARD:
-            logging.error("Export one-file param is valid only for objects of type dashboard")
-            error = 1
-
+    if args.export_objs:
         if args.obj_type == INDEX_PATTERN and args.index_pattern:
             logging.error("Export index-pattern param is not valid for index-pattern objects")
-            error = 1
-
-        if not xor(bool(args.obj_id), bool(args.obj_title)):
-            logging.error("Export requires --obj-id or --obj-title")
             error = 1
 
     if error:
@@ -149,20 +137,20 @@ def main():
     config_logging(args.debug)
     logging.info("Archimedes will start soon.")
 
-    archimedes = Archimedes(args.url)
+    archimedes = Archimedes(args.url, args.root_path)
 
-    if args.import_objs:
-        archimedes.import_from_file(file_path=args.json_path, find=args.find,
-                                    visualizations_folder=args.visualizations_folder,
-                                    searches_folder=args.searches_folder,
-                                    index_patterns_folder=args.index_patterns_folder,
-                                    force=args.force)
+    if args.import_objs and args.obj_id:
+        archimedes.import_from_disk(obj_type=args.obj_type, obj_id=args.obj_id,
+                                    find=args.find, force=args.force)
+    elif args.import_objs and args.obj_title:
+        archimedes.import_from_disk(obj_type=args.obj_type, obj_title=args.obj_title,
+                                    find=args.find, force=args.force)
     elif args.export_objs and args.obj_id:
-        archimedes.export(obj_type=args.obj_type, obj_id=args.obj_id, folder_path=args.folder_path,
-                          one_file=args.one_file, force=args.force, index_pattern=args.index_pattern)
+        archimedes.export_to_disk(obj_type=args.obj_type, obj_id=args.obj_id,
+                                  force=args.force, index_pattern=args.index_pattern)
     elif args.export_objs and args.obj_title:
-        archimedes.export(obj_type=args.obj_type, obj_title=args.obj_title, folder_path=args.folder_path,
-                          one_file=args.one_file, force=args.force, index_pattern=args.index_pattern)
+        archimedes.export_to_disk(obj_type=args.obj_type, obj_title=args.obj_title,
+                                  force=args.force, index_pattern=args.index_pattern)
 
     logging.info("Archimedes has finished.")
 
