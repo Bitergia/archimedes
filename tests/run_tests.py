@@ -20,15 +20,13 @@
 #     Valerio Cosentino <valcos@bitergia.com>
 #
 
-import logging
+import os
 import sys
 import unittest
 
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.WARNING,
-                        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    test_suite = unittest.TestLoader().discover('.', pattern='test*.py')
+    test_suite = unittest.TestLoader().discover(os.path.join(os.path.dirname(os.path.abspath(__file__)), "."),
+                                                pattern='test_*.py')
     result = unittest.TextTestRunner(buffer=True).run(test_suite)
     sys.exit(not result.wasSuccessful())

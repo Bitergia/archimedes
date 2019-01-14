@@ -74,7 +74,9 @@ setup(name="archimedes",
       python_requires='>=3.4',
       setup_requires=['wheel'],
       extras_require={},
-      tests_require=[],
+      tests_require=[
+          'httpretty==0.8.6'
+      ],
       test_suite='tests',
       install_requires=[
           'requests>=2.7.0',
