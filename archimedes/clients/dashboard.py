@@ -63,8 +63,9 @@ class Dashboard(HttpClient):
         try:
             dashboard = self.fetch(url)
 
-            if 'error' in dashboard['objects'][0]:
-                msg = dashboard['objects'][0]['error']['message'].lower()
+            errors = [obj for obj in dashboard['objects'] if 'error' in obj]
+            if errors:
+                msg = errors[0]['error']['message'].lower()
                 logger.error("Impossible to export dashboard with id %s, %s", dashboard_id, msg)
                 dashboard = None
         except requests.exceptions.HTTPError as error:
@@ -112,6 +113,6 @@ class Dashboard(HttpClient):
                 continue
 
             response['objects'].remove(obj)
-            logger.error("%s with id %s not imported, %s", obj['type'], obj['id'], obj['error']['message'])
+            logger.error("%s with id %s not imported, %s", obj['type'], obj['id'], obj['error']['message'].lower())
 
         logger.info("%s/%s object(s) imported", len(response['objects']), total)
