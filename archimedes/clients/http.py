@@ -48,12 +48,12 @@ class HttpClient:
 
     def __init__(self, base_url):
         self.base_url = base_url
-        self._create_http_session()
+        self.session = self._create_http_session()
 
     def __del__(self):
         self._close_http_session()
 
-    def fetch(self, url, params=None, headers=HEADERS):
+    def fetch(self, url, params=None, headers=None):
         """Fetch the data from a given URL.
 
         :param url: link to the resource
@@ -63,9 +63,11 @@ class HttpClient:
         :returns a response object
         """
         response = self.session.get(url, params=params, headers=headers)
+        response.raise_for_status()
+
         return response.json()
 
-    def delete(self, url, headers=HEADERS):
+    def delete(self, url, headers=None):
         """Delete the target object pointed by the url.
 
         :param url: link to the resource
@@ -74,9 +76,11 @@ class HttpClient:
         :returns a response object
         """
         response = self.session.delete(url, headers=headers)
+        response.raise_for_status()
+
         return response.json()
 
-    def put(self, url, data, headers=HEADERS):
+    def put(self, url, data, headers=None):
         """Update the target object pointed by the url.
 
         :param url: link to the resource
@@ -86,9 +90,11 @@ class HttpClient:
         :returns a response object
         """
         response = self.session.put(url, data=json.dumps(data), headers=headers)
+        response.raise_for_status()
+
         return response.json()
 
-    def post(self, url, data, params, headers=HEADERS):
+    def post(self, url, data, params, headers=None):
         """Update the target object pointed by the url.
 
         :param url: link to the resource
@@ -99,19 +105,23 @@ class HttpClient:
         :returns a response object
         """
         response = self.session.post(url, params=params, data=json.dumps(data), headers=headers)
+        response.raise_for_status()
+
         return response.json()
 
     def _create_http_session(self):
         """Create a http session and initialize the retry object."""
 
-        self.session = requests.Session()
-        self.session.headers.update(HEADERS)
+        session = requests.Session()
+        session.headers.update(HEADERS)
 
         retries = urllib3.util.Retry(total=MAX_RETRIES,
                                      backoff_factor=SLEEP_TIME)
 
-        self.session.mount('http://', requests.adapters.HTTPAdapter(max_retries=retries))
-        self.session.mount('https://', requests.adapters.HTTPAdapter(max_retries=retries))
+        session.mount('http://', requests.adapters.HTTPAdapter(max_retries=retries))
+        session.mount('https://', requests.adapters.HTTPAdapter(max_retries=retries))
+
+        return session
 
     def _close_http_session(self):
         """Close the http session."""
