@@ -24,7 +24,8 @@ import logging
 import json
 import os
 
-from archimedes.clients.dashboard import (INDEX_PATTERN,
+from archimedes.clients.dashboard import (DASHBOARD,
+                                          INDEX_PATTERN,
                                           SEARCH,
                                           VISUALIZATION)
 from archimedes.errors import NotFoundError, ObjectTypeError
@@ -160,7 +161,6 @@ class Manager:
 
         :param obj_type: type of the object
         """
-        name = ''
         folder_path = self.root_path
 
         if obj_type == VISUALIZATION:
@@ -169,9 +169,14 @@ class Manager:
             name = INDEX_PATTERNS_FOLDER
         elif obj_type == SEARCH:
             name = SEARCHES_FOLDER
+        elif obj_type == DASHBOARD:
+            name = ''
+        else:
+            cause = "Unknown type %s" % obj_type
+            logger.error(cause)
+            raise ObjectTypeError(cause=cause)
 
-        if name:
-            folder_path = os.path.join(folder_path, name)
+        folder_path = os.path.join(folder_path, name)
 
         os.makedirs(folder_path, exist_ok=True)
         return folder_path
