@@ -1,4 +1,4 @@
-# Archimedes
+# Archimedes [![Build Status](https://travis-ci.org/Bitergia/archimedes.svg?branch=master)](https://travis-ci.org/Bitergia/archimedes) [![Coverage Status](https://coveralls.io/repos/github/Bitergia/archimedes/badge.svg?branch=master)](https://coveralls.io/github/Bitergia/archimedes?branch=master)
 
 Import and export Kibana dashboards, visualizations, searches and index patterns from command line.
 
