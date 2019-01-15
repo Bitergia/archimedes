@@ -99,16 +99,20 @@ class Manager:
         vis_content = self.load_json(visualization_path)
 
         if not self.folder_exists(self.searches_folder):
-            logger.info("Searches won't be loaded for %s, searches folder doesn't exist")
+            logger.info("Searches won't be loaded for %s, searches folder doesn't exist",
+                        visualization_path)
 
         if not self.folder_exists(self.index_patterns_folder):
-            logger.info("Index patterns won't be loaded %s, index patterns doesn't exist")
+            logger.info("Index patterns won't be loaded for %s, index patterns folder doesn't exist",
+                        visualization_path)
 
         if 'savedSearchId' in vis_content['attributes'] and self.folder_exists(self.searches_folder):
             search_id = vis_content['attributes']['savedSearchId']
             search_path = self.find_file_by_name(self.searches_folder, self.build_file_name(SEARCH, search_id))
             if search_path not in visualization_files:
                 visualization_files.append(search_path)
+                search_files = self.find_search_files(search_path)
+                [visualization_files.append(sf) for sf in search_files if sf not in visualization_files]
 
         search_files = self.find_search_files(visualization_path)
         [visualization_files.append(sf) for sf in search_files if sf not in visualization_files]
@@ -126,7 +130,7 @@ class Manager:
 
         index_pattern_id = self.find_index_pattern(search_content)
         if not index_pattern_id:
-            logger.info("No index pattern declared for search %s", search_path)
+            logger.info("No index pattern declared for %s", search_path)
             search_files.append(search_path)
             return search_files
 

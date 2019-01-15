@@ -31,29 +31,19 @@ from archimedes.clients.dashboard import (DASHBOARD,
                                           INDEX_PATTERN,
                                           SEARCH,
                                           VISUALIZATION)
-from archimedes.errors import ObjectTypeError
-from archimedes.manager import (Manager,
+from archimedes.errors import (NotFoundError,
+                               ObjectTypeError)
+from archimedes.manager import (logger,
+                                Manager,
                                 VISUALIZATIONS_FOLDER,
                                 SEARCHES_FOLDER,
-                                INDEX_PATTERNS_FOLDER)
+                                INDEX_PATTERNS_FOLDER,
+                                JSON_EXT)
 
 
-DASHBOARD_1_FILE_NAME = 'dashboard_Maniphest.json'
-DASHBOARD_2_FILE_NAME = 'dashboard_Maniphest-Backlog.json'
-DASHBOARD_3_FILE_NAME = 'dashboard_Maniphest-Timing.json'
+EXPECTED_DASHBOARD = 'dashboard_Maniphest-Backlog.json'
 
-VISUALIZATIONS_DASHBOARD_1 = [
-    'visualization_maniphest_main_numbers.json',
-    'visualization_maniphest_submitters.json',
-    'visualization_maniphest_issues.json',
-    'visualization_maniphest_issues_organizations_assignee.json',
-    'visualization_maniphest_openissues_projects.json',
-    'visualization_maniphest_issues_submitters.json',
-    'visualization_maniphest_assigned_issues_orgs.json',
-    'visualization_maniphest_issues_organizations.json'
-]
-
-VISUALIZATIONS_DASHBOARD_2 = [
+EXPECTED_VISUALIZATIONS = [
     'visualization_maniphest_openissues_statistics.json',
     'visualization_maniphest_openissues_per_project.json',
     'visualization_maniphest_openissues_backlog.json',
@@ -62,26 +52,11 @@ VISUALIZATIONS_DASHBOARD_2 = [
     'visualization_maniphest_openissues_submitters.json',
     'visualization_maniphest_openissues_assignee_orgs.json',
     'visualization_maniphest_openissues_per_organization.json'
+
 ]
 
-VISUALIZATIONS_DASHBOARD_3 = [
-    'visualization_maniphest_issues_submitters.json',
-    'visualization_maniphest_main_numbers_timing.json',
-    'visualization_maniphest_issues_status.json',
-    'visualization_maniphest_issues_assigned_organizations.json',
-    'visualization_maniphest_openissues_projects.json',
-    'visualization_maniphest_issues_open_in_median.json',
-    'visualization_maniphest_issues_open_in_median_80_percentile.json',
-    'visualization_maniphest_openissues_per_organization.json',
-    'visualization_maniphest_submitters.json',
-    'visualization_maniphest_issues_evolutionary.json',
-    'visualization_17545120-752d-11e8-a4e7-6b1c6a13c58d.json',
-    'visualization_f5f83530-752e-11e8-a4e7-6b1c6a13c58d.json'
-]
-
-
-SEARCH_DASHBOARD = 'search_Maniphest-Search:_status:Open.json'
-INDEX_PATTERN_DASHBOARD = 'index-pattern_maniphest.json'
+EXPECTED_SEARCH = 'search_Maniphest-Search:_status:Open.json'
+EXPECTED_INDEX_PATTERN = 'index-pattern_maniphest.json'
 
 
 def read_file(filename, mode='r'):
@@ -96,11 +71,15 @@ class TestManager(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.tmp_path = tempfile.mkdtemp(prefix='archimedes_')
-        cls.tmp_repo_path = os.path.join(cls.tmp_path, 'collection')
+        cls.tmp_repo_path = os.path.join(cls.tmp_path, 'collections')
 
         data_path = os.path.dirname(os.path.abspath(__file__))
-        tar_path = os.path.join(data_path, 'data/collection.tar.gz')
+        tar_path = os.path.join(data_path, 'data/collections.tar.gz')
         subprocess.check_call(['tar', '-xzf', tar_path, '-C', cls.tmp_path])
+
+        cls.tmp_full = os.path.join(cls.tmp_repo_path, 'collection-full')
+        cls.tmp_only_viz = os.path.join(cls.tmp_repo_path, 'collection-viz')
+        cls.tmp_only_dash = os.path.join(cls.tmp_repo_path, 'collection-dashboard')
 
     @classmethod
     def tearDownClass(cls):
@@ -109,115 +88,105 @@ class TestManager(unittest.TestCase):
     def test_initialization(self):
         """Test whether attributes are initializated"""
 
-        manager = Manager(self.tmp_repo_path)
+        manager = Manager(self.tmp_full)
 
-        self.assertEqual(manager.root_path, self.tmp_repo_path)
-        self.assertEqual(manager.visualizations_folder, os.path.join(self.tmp_repo_path, VISUALIZATIONS_FOLDER))
-        self.assertEqual(manager.searches_folder, os.path.join(self.tmp_repo_path, SEARCHES_FOLDER))
-        self.assertEqual(manager.index_patterns_folder, os.path.join(self.tmp_repo_path, INDEX_PATTERNS_FOLDER))
+        self.assertEqual(manager.root_path, self.tmp_full)
+        self.assertEqual(manager.visualizations_folder, os.path.join(self.tmp_full, VISUALIZATIONS_FOLDER))
+        self.assertEqual(manager.searches_folder, os.path.join(self.tmp_full, SEARCHES_FOLDER))
+        self.assertEqual(manager.index_patterns_folder, os.path.join(self.tmp_full, INDEX_PATTERNS_FOLDER))
 
     def test_find_dashboard_files(self):
         """Test whether the files containing the objects referenced in the dashboard are retrieved"""
 
-        manager = Manager(self.tmp_repo_path)
+        manager = Manager(self.tmp_full)
 
-        # first dashboard
-        dashboard_file_path = os.path.join(self.tmp_repo_path, DASHBOARD_1_FILE_NAME)
+        dashboard_file_path = os.path.join(self.tmp_full, EXPECTED_DASHBOARD)
         dashboard_files = manager.find_dashboard_files(dashboard_file_path)
 
-        self.assertEqual(len(dashboard_files), 10)
+        self.assertEqual(len(dashboard_files), 11)
         self.assertIn(dashboard_file_path, dashboard_files)
 
-        index_pattern_file_path = os.path.join(self.tmp_repo_path, INDEX_PATTERNS_FOLDER, INDEX_PATTERN_DASHBOARD)
+        index_pattern_file_path = os.path.join(self.tmp_full, INDEX_PATTERNS_FOLDER, EXPECTED_INDEX_PATTERN)
         self.assertIn(index_pattern_file_path, dashboard_files)
 
-        search_file_path = os.path.join(self.tmp_repo_path, SEARCHES_FOLDER, SEARCH_DASHBOARD)
-        self.assertNotIn(search_file_path, dashboard_files)
-
-        for visualization_file_name in VISUALIZATIONS_DASHBOARD_1:
-            visualization_path = os.path.join(self.tmp_repo_path, VISUALIZATIONS_FOLDER, visualization_file_name)
-            self.assertIn(visualization_path, dashboard_files)
-
-        # second dashboard
-        dashboard_file_path = os.path.join(self.tmp_repo_path, DASHBOARD_2_FILE_NAME)
-        dashboard_files = manager.find_dashboard_files(dashboard_file_path)
-
-        self.assertEqual(len(dashboard_files), 10)
-        self.assertIn(dashboard_file_path, dashboard_files)
-
-        index_pattern_file_path = os.path.join(self.tmp_repo_path, INDEX_PATTERNS_FOLDER, INDEX_PATTERN_DASHBOARD)
-        self.assertNotIn(index_pattern_file_path, dashboard_files)
-
-        search_file_path = os.path.join(self.tmp_repo_path, SEARCHES_FOLDER, SEARCH_DASHBOARD)
+        search_file_path = os.path.join(self.tmp_full, SEARCHES_FOLDER, EXPECTED_SEARCH)
         self.assertIn(search_file_path, dashboard_files)
 
-        for visualization_file_name in VISUALIZATIONS_DASHBOARD_2:
-            visualization_path = os.path.join(self.tmp_repo_path, VISUALIZATIONS_FOLDER, visualization_file_name)
+        for visualization_file_name in EXPECTED_VISUALIZATIONS:
+            visualization_path = os.path.join(self.tmp_full, VISUALIZATIONS_FOLDER, visualization_file_name)
             self.assertIn(visualization_path, dashboard_files)
 
-        # third dashboard
-        dashboard_file_path = os.path.join(self.tmp_repo_path, DASHBOARD_3_FILE_NAME)
-        dashboard_files = manager.find_dashboard_files(dashboard_file_path)
+    def test_find_dashboard_files_no_viz(self):
+        """Test whether only the dashboard file is returned when the visualization folder does not exit"""
 
-        self.assertEqual(len(dashboard_files), 15)
-        self.assertIn(dashboard_file_path, dashboard_files)
+        manager = Manager(self.tmp_only_dash)
 
-        index_pattern_file_path = os.path.join(self.tmp_repo_path, INDEX_PATTERNS_FOLDER, INDEX_PATTERN_DASHBOARD)
-        self.assertIn(index_pattern_file_path, dashboard_files)
+        dashboard_file_path = os.path.join(self.tmp_only_dash, EXPECTED_DASHBOARD)
 
-        search_file_path = os.path.join(self.tmp_repo_path, SEARCHES_FOLDER, SEARCH_DASHBOARD)
-        self.assertIn(search_file_path, dashboard_files)
+        with self.assertLogs(logger, level='INFO') as cm:
+            dashboard_files = manager.find_dashboard_files(dashboard_file_path)
+            self.assertEqual(len(dashboard_files), 1)
+            self.assertIn(dashboard_file_path, dashboard_files)
 
-        for visualization_file_name in VISUALIZATIONS_DASHBOARD_3:
-            visualization_path = os.path.join(self.tmp_repo_path, VISUALIZATIONS_FOLDER, visualization_file_name)
-            self.assertIn(visualization_path, dashboard_files)
+            self.assertEqual(cm.output[0], "INFO:archimedes.manager:Visualizations not loaded "
+                                           "for " + dashboard_file_path + ", visualizations folder doesn't exist")
 
     def test_find_visualization_files(self):
         """Test whether the files containing the objects referenced in the visualization are retrieved"""
 
-        manager = Manager(self.tmp_repo_path)
+        manager = Manager(self.tmp_full)
 
-        # first visualization
-        visualization_file_name = VISUALIZATIONS_DASHBOARD_1[0]
-        visualization_file_path = os.path.join(self.tmp_repo_path, VISUALIZATIONS_FOLDER, visualization_file_name)
+        visualization_file_path = os.path.join(self.tmp_full, VISUALIZATIONS_FOLDER, EXPECTED_VISUALIZATIONS[0])
         visualization_files = manager.find_visualization_files(visualization_file_path)
 
-        self.assertEqual(len(visualization_files), 2)
-        self.assertIn(visualization_file_path, visualization_files)
+        self.assertEqual(len(visualization_files), 3)
 
-        index_pattern_file_path = os.path.join(self.tmp_repo_path, INDEX_PATTERNS_FOLDER, INDEX_PATTERN_DASHBOARD)
+        self.assertIn(visualization_file_path, visualization_files)
+        index_pattern_file_path = os.path.join(self.tmp_full, INDEX_PATTERNS_FOLDER, EXPECTED_INDEX_PATTERN)
         self.assertIn(index_pattern_file_path, visualization_files)
 
-        # second visualization
-        visualization_file_name = VISUALIZATIONS_DASHBOARD_2[0]
-        visualization_file_path = os.path.join(self.tmp_repo_path, VISUALIZATIONS_FOLDER, visualization_file_name)
-        visualization_files = manager.find_visualization_files(visualization_file_path)
-
-        self.assertEqual(len(visualization_files), 2)
-        self.assertIn(visualization_file_path, visualization_files)
-
-        search_file_path = os.path.join(self.tmp_repo_path, SEARCHES_FOLDER, SEARCH_DASHBOARD)
+        search_file_path = os.path.join(self.tmp_full, SEARCHES_FOLDER, EXPECTED_SEARCH)
         self.assertIn(search_file_path, visualization_files)
+
+    def test_find_visualization_only_files(self):
+        """Test whether only the dashboard and visualizations are returned when the other folders don't exist"""
+
+        manager = Manager(self.tmp_only_viz)
+
+        visualization_file_path = os.path.join(self.tmp_full, VISUALIZATIONS_FOLDER, EXPECTED_VISUALIZATIONS[0])
+
+        with self.assertLogs(logger, level='INFO') as cm:
+            visualization_files = manager.find_visualization_files(visualization_file_path)
+
+            self.assertEqual(len(visualization_files), 1)
+            self.assertIn(visualization_file_path, visualization_files)
+
+            self.assertEqual(cm.output[0], "INFO:archimedes.manager:Searches won't be loaded "
+                                           "for " + visualization_file_path + ", searches folder doesn't exist")
+            self.assertEqual(cm.output[1], "INFO:archimedes.manager:Index patterns won't be loaded "
+                                           "for " + visualization_file_path + ", index patterns folder doesn't exist")
+            self.assertEqual(cm.output[2], "INFO:archimedes.manager:No index pattern declared "
+                                           "for " + visualization_file_path)
 
     def test_find_search_files(self):
         """Test whether the files containing the objects referenced in the search are retrieved"""
 
-        manager = Manager(self.tmp_repo_path)
+        manager = Manager(self.tmp_full)
 
-        search_file_path = os.path.join(self.tmp_repo_path, SEARCHES_FOLDER, SEARCH_DASHBOARD)
+        search_file_path = os.path.join(self.tmp_full, SEARCHES_FOLDER, EXPECTED_SEARCH)
         search_files = manager.find_search_files(search_file_path)
 
         self.assertEqual(len(search_files), 2)
         self.assertIn(search_file_path, search_files)
 
-        index_pattern_file_path = os.path.join(self.tmp_repo_path, INDEX_PATTERNS_FOLDER, INDEX_PATTERN_DASHBOARD)
+        index_pattern_file_path = os.path.join(self.tmp_full, INDEX_PATTERNS_FOLDER, EXPECTED_INDEX_PATTERN)
         self.assertIn(index_pattern_file_path, search_files)
 
     def test_find_index_pattern(self):
         """Test whether the index pattern id is retrieved from an object"""
 
         visualization = read_file('data/object_visualization')
-        manager = Manager(self.tmp_repo_path)
+        manager = Manager(self.tmp_full)
 
         index_pattern = manager.find_index_pattern(json.loads(visualization))
         self.assertEqual(index_pattern, "git")
@@ -225,22 +194,89 @@ class TestManager(unittest.TestCase):
     def test_build_folder_path(self):
         """Test whether the folder path is properly built"""
 
-        manager = Manager(self.tmp_repo_path)
+        manager = Manager(self.tmp_full)
 
-        expected = os.path.join(self.tmp_repo_path, VISUALIZATIONS_FOLDER)
+        expected = os.path.join(self.tmp_full, VISUALIZATIONS_FOLDER)
         self.assertEqual(manager.build_folder_path(VISUALIZATION), expected)
 
-        expected = os.path.join(self.tmp_repo_path, SEARCHES_FOLDER)
+        expected = os.path.join(self.tmp_full, SEARCHES_FOLDER)
         self.assertEqual(manager.build_folder_path(SEARCH), expected)
 
-        expected = os.path.join(self.tmp_repo_path, INDEX_PATTERNS_FOLDER)
+        expected = os.path.join(self.tmp_full, INDEX_PATTERNS_FOLDER)
         self.assertEqual(manager.build_folder_path(INDEX_PATTERN), expected)
 
-        expected = os.path.join(self.tmp_repo_path, '')
+        expected = os.path.join(self.tmp_full, '')
         self.assertEqual(manager.build_folder_path(DASHBOARD), expected)
 
         with self.assertRaises(ObjectTypeError):
             _ = manager.build_folder_path("xxx")
+
+    def test_save_obj(self):
+        """Test whether the object is correctly saved"""
+
+        obj = read_file('data/object_visualization')
+        obj_content = json.loads(obj)
+        manager = Manager(self.tmp_full)
+
+        dest_name = obj_content['type'] + '_' + obj_content['id'] + JSON_EXT
+        dest_path = os.path.join(self.tmp_full, VISUALIZATIONS_FOLDER, dest_name)
+
+        self.assertFalse(os.path.exists(dest_path))
+
+        with self.assertLogs(logger, level='INFO') as cm:
+            manager.save_obj(obj_content)
+            self.assertEqual(cm.output[0], "INFO:archimedes.manager:Object saved at " + dest_path)
+            self.assertTrue(os.path.exists(dest_path))
+
+        with self.assertLogs(logger, level='INFO') as cm:
+            manager.save_obj(obj_content)
+            self.assertEqual(cm.output[0], "WARNING:archimedes.manager:Object already "
+                                           "exists at " + dest_path + ", it won't be overwritten")
+
+        with self.assertLogs(logger, level='INFO') as cm:
+            manager.save_obj(obj_content, force=True)
+            self.assertEqual(cm.output[0], "INFO:archimedes.manager:Object saved at " + dest_path)
+
+    def test_find_file_by_content_title(self):
+        """Test whether a file is found by its content title"""
+
+        manager = Manager(self.tmp_full)
+        folder_path = os.path.join(self.tmp_full, VISUALIZATIONS_FOLDER)
+
+        target_content_title = "maniphest_backlog"
+        target_file_name = "visualization_maniphest_backlog.json"
+
+        found = manager.find_file_by_content_title(folder_path, target_content_title)
+        self.assertEqual(found, os.path.join(folder_path, target_file_name))
+
+        target_content_title = "not_found"
+
+        with self.assertRaises(NotFoundError):
+            _ = manager.find_file_by_content_title(folder_path, target_content_title)
+
+        folder_path = "wrong_path"
+        with self.assertRaises(NotFoundError):
+            _ = manager.find_file_by_content_title(folder_path, target_content_title)
+
+    def test_find_file_by_name(self):
+        """Test whether a file is found by its name"""
+
+        manager = Manager(self.tmp_full)
+        folder_path = os.path.join(self.tmp_full, VISUALIZATIONS_FOLDER)
+
+        target_file_name = "visualization_maniphest_backlog.json"
+
+        found = manager.find_file_by_name(folder_path, target_file_name)
+        self.assertEqual(found, os.path.join(folder_path, target_file_name))
+
+        target_file_name = "not_found"
+
+        with self.assertRaises(NotFoundError):
+            _ = manager.find_file_by_name(folder_path, target_file_name)
+
+        folder_path = "wrong_path"
+        with self.assertRaises(NotFoundError):
+            _ = manager.find_file_by_name(folder_path, target_file_name)
 
     def test_build_file_name(self):
         """Test whether the file name is properly built"""
@@ -253,7 +289,7 @@ class TestManager(unittest.TestCase):
     def test_folder_exists(self):
         """Test whether the method `folder_exists` properly works"""
 
-        manager = Manager(self.tmp_repo_path)
+        manager = Manager(self.tmp_full)
 
         self.assertTrue(manager.folder_exists(manager.visualizations_folder))
         self.assertFalse(manager.folder_exists('xxx'))
@@ -261,18 +297,15 @@ class TestManager(unittest.TestCase):
     def test_get_files(self):
         """Test whether files are correctly returned"""
 
-        manager = Manager(self.tmp_repo_path)
+        manager = Manager(self.tmp_full)
 
-        expected = [INDEX_PATTERN_DASHBOARD]
+        expected = [EXPECTED_INDEX_PATTERN]
         self.assertListEqual(manager.get_files(manager.index_patterns_folder), expected)
 
-        expected = [SEARCH_DASHBOARD]
+        expected = [EXPECTED_SEARCH]
         self.assertListEqual(manager.get_files(manager.searches_folder), expected)
 
-        expected = list.copy(VISUALIZATIONS_DASHBOARD_1)
-        expected.extend(VISUALIZATIONS_DASHBOARD_2)
-        expected.extend(VISUALIZATIONS_DASHBOARD_3)
-        expected = list(set(expected))
+        expected = EXPECTED_VISUALIZATIONS
         expected.sort()
 
         actual = manager.get_files(manager.visualizations_folder)
@@ -282,11 +315,13 @@ class TestManager(unittest.TestCase):
     def test_load_json(self):
         """Test whether the content of JSON is correctly loaded"""
 
-        obj_file = read_file('data/object_visualization')
-        manager = Manager(self.tmp_repo_path)
+        target_file = 'data/object_visualization'
+        obj_file = read_file(target_file)
+        manager = Manager(self.tmp_full)
 
         expected = json.loads(obj_file)
-        self.assertDictEqual(manager.load_json('data/object_visualization'), expected)
+        self.assertDictEqual(manager.load_json(os.path.join(os.path.dirname(os.path.abspath(__file__)), target_file)),
+                             expected)
 
 
 if __name__ == "__main__":
