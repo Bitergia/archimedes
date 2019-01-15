@@ -75,20 +75,16 @@ class Kibana:
         :param obj_type: type of the target object
         :param obj_title: title of the target object
         """
-        obj = self.find_by_title(obj_type, obj_title)
-
-        if not obj:
-            cause = "Impossible to export %s with title %s, not found" % (obj_type, obj_title)
+        if obj_type not in [DASHBOARD, INDEX_PATTERN, SEARCH, VISUALIZATION]:
+            cause = "Unknown type %s" % obj_type
             logger.error(cause)
-            raise NotFoundError(cause=cause)
+            raise ObjectTypeError(cause=cause)
+
+        obj = self.find_by_title(obj_type, obj_title)
 
         if obj_type == DASHBOARD:
             obj_id = obj['id']
             obj = self.dashboard.export_dashboard(obj_id)
-        elif obj_type not in [INDEX_PATTERN, SEARCH, VISUALIZATION]:
-            cause = "Unknown type %s" % obj_type
-            logger.error(cause)
-            raise ObjectTypeError(cause=cause)
 
         return obj
 
