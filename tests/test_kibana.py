@@ -20,10 +20,6 @@
 #   Valerio Cosentino <valcos@bitergia.com>
 #
 
-import os
-import shutil
-import subprocess
-import tempfile
 import unittest
 
 from archimedes.kibana import Kibana
@@ -42,7 +38,8 @@ VISUALIZATION_ID = 'visualization-id'
 VISUALIZATION_TITLE = 'visualization-title'
 
 OBJECTS = [
-        [{
+    [
+        {
             "attributes": {
                 "description": "",
                 "kibanaSavedObjectMeta": {
@@ -71,8 +68,9 @@ OBJECTS = [
             "id": VISUALIZATION_ID,
             "type": "visualization",
             "version": 1
-        }]
+        }
     ]
+]
 
 
 class MockedKibana(Kibana):
