@@ -44,7 +44,6 @@ class Archimedes:
     :param root_path: the folder where visualizations, searches and index patterns are stored
     """
     def __init__(self, url, root_path):
-        self.url = url
         self.kibana = Kibana(url)
         self.manager = Manager(root_path)
 
@@ -82,6 +81,7 @@ class Archimedes:
             return
 
         if not find:
+            logger.info("Do not find related files")
             self.__import_objects([file_path], force)
             return
 
@@ -91,6 +91,10 @@ class Archimedes:
             files = self.manager.find_visualization_files(file_path)
         elif obj_type == SEARCH:
             files = self.manager.find_search_files(file_path)
+        elif obj_type == INDEX_PATTERN:
+            cause = "Find not supported for %s" % obj_type
+            logger.error(cause)
+            raise ImportError(cause=cause)
         else:
             cause = "Object type %s not known" % obj_type
             logger.error(cause)
@@ -147,9 +151,8 @@ class Archimedes:
             else:
                 objects = json_content
 
-            kibana = Kibana(self.url)
             logger.info("Importing %s", obj_path)
-            kibana.import_objects(objects, force)
+            self.kibana.import_objects(objects, force)
 
     def __export_objects(self, data, force, index_pattern=False):
         """Export Kibana objects to disk. The exported data is divided into several
@@ -168,10 +171,12 @@ class Archimedes:
         else:
             objs = data['objects']
 
+        logger.info("Exporting objects")
         for obj in objs:
             self.manager.save_obj(obj, force)
 
             if index_pattern:
+                logger.info("Retrieving and exporting index pattern too")
                 index_pattern_id = self.manager.find_index_pattern(obj)
                 index_pattern_obj = self.kibana.find_by_id(INDEX_PATTERN, index_pattern_id)
                 self.manager.save_obj(index_pattern_obj, force)
