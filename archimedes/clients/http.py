@@ -23,7 +23,9 @@
 import json
 
 import requests
-import urllib3.util
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 HEADERS = {
@@ -33,6 +35,8 @@ HEADERS = {
 
 SLEEP_TIME = 1
 MAX_RETRIES = 5
+
+VERIFY = False
 
 
 class HttpClient:
@@ -62,7 +66,7 @@ class HttpClient:
 
         :returns a response object
         """
-        response = self.session.get(url, params=params, headers=headers)
+        response = self.session.get(url, params=params, headers=headers, verify=VERIFY)
         response.raise_for_status()
 
         return response.json()
@@ -75,7 +79,7 @@ class HttpClient:
 
         :returns a response object
         """
-        response = self.session.delete(url, headers=headers)
+        response = self.session.delete(url, headers=headers, verify=VERIFY)
         response.raise_for_status()
 
         return response.json()
@@ -89,7 +93,7 @@ class HttpClient:
 
         :returns a response object
         """
-        response = self.session.put(url, data=json.dumps(data), headers=headers)
+        response = self.session.put(url, data=json.dumps(data), headers=headers, verify=VERIFY)
         response.raise_for_status()
 
         return response.json()
@@ -104,7 +108,7 @@ class HttpClient:
 
         :returns a response object
         """
-        response = self.session.post(url, params=params, data=json.dumps(data), headers=headers)
+        response = self.session.post(url, params=params, data=json.dumps(data), headers=headers, verify=VERIFY)
         response.raise_for_status()
 
         return response.json()
