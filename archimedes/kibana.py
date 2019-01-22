@@ -86,6 +86,11 @@ class Kibana:
             obj_id = obj['id']
             obj = self.dashboard.export_dashboard(obj_id)
 
+        if not obj:
+            cause = "Impossible to export %s with title %s, not found" % (obj_type, obj_title)
+            logger.error(cause)
+            raise NotFoundError(cause=cause)
+
         return obj
 
     def import_objects(self, objects, force=False):
