@@ -25,6 +25,7 @@ import logging
 import requests
 
 from archimedes.clients.http import HttpClient
+from archimedes.errors import ExportError
 from grimoirelab_toolkit.uris import urijoin
 
 DASHBOARD = "dashboard"
@@ -59,18 +60,20 @@ class Dashboard(HttpClient):
         """
         url = urijoin(self.base_url, self.API_DASHBOARDS_URL, self.API_EXPORT_COMMAND + '?dashboard=' + dashboard_id)
 
-        dashboard = None
         try:
             dashboard = self.fetch(url)
 
             errors = [obj for obj in dashboard['objects'] if 'error' in obj]
             if errors:
-                msg = errors[0]['error']['message'].lower()
-                logger.error("Impossible to export dashboard with id %s, %s", dashboard_id, msg)
-                dashboard = None
+                msg = errors[0]
+                cause = "Impossible to export dashboard with id %s, %s" % (dashboard_id, msg)
+                logger.error(cause)
+                raise ExportError(cause=cause)
         except requests.exceptions.HTTPError as error:
             if error.response.status_code == 400:
-                logger.error("Impossible to export dashboard with id %s", dashboard_id)
+                cause = "Impossible to export dashboard with id %s" % dashboard_id
+                logger.error(cause)
+                raise ExportError(cause=cause)
             else:
                 raise error
 
