@@ -30,9 +30,10 @@ import requests
 from archimedes.clients.http import HEADERS
 from archimedes.clients.dashboard import (logger,
                                           Dashboard)
+from archimedes.errors import ExportError
 
 
-KIBANA_URL = 'http://kibana.biterg.io/'
+KIBANA_URL = 'http://example.com/'
 DASHBOARD_ID = 'Git'
 DASHBOARD_EXPORT_URL = \
     KIBANA_URL + Dashboard.API_DASHBOARDS_URL + '/' + Dashboard.API_EXPORT_COMMAND + '?dashboard=' + DASHBOARD_ID
@@ -85,12 +86,8 @@ class TestDashboard(unittest.TestCase):
                                status=200)
 
         client = Dashboard(KIBANA_URL)
-        with self.assertLogs(logger, level='ERROR') as cm:
-            objs = client.export_dashboard(DASHBOARD_ID)
-            self.assertEqual(cm.output[0], 'ERROR:archimedes.clients.dashboard:Impossible to export '
-                                           'dashboard with id ' + DASHBOARD_ID + ', an internal server error occurred')
-
-            self.assertIsNone(objs)
+        with self.assertRaises(ExportError):
+            _ = client.export_dashboard(DASHBOARD_ID)
 
     @httpretty.activate
     def test_export_dashboard_impossible(self):
@@ -104,12 +101,8 @@ class TestDashboard(unittest.TestCase):
                                status=400)
 
         client = Dashboard(KIBANA_URL)
-        with self.assertLogs(logger, level='ERROR') as cm:
-            objs = client.export_dashboard(DASHBOARD_ID)
-            self.assertEqual(cm.output[0], 'ERROR:archimedes.clients.dashboard:Impossible to export '
-                                           'dashboard with id ' + DASHBOARD_ID)
-
-            self.assertIsNone(objs)
+        with self.assertRaises(ExportError):
+            _ = client.export_dashboard(DASHBOARD_ID)
 
     @httpretty.activate
     def test_export_dashboard_http_error(self):

@@ -32,7 +32,7 @@ from archimedes.clients.saved_objects import (logger,
                                               SavedObjects)
 
 
-KIBANA_URL = 'http://kibana.biterg.io/'
+KIBANA_URL = 'http://example.com/'
 SAVED_OBJECTS_URL = KIBANA_URL + SavedObjects.API_SAVED_OBJECTS_URL
 
 OBJECT_TYPE = "index-pattern"
@@ -143,7 +143,7 @@ class TestSavedObjects(unittest.TestCase):
             _ = [obj for page_objs in client.fetch_objs(SAVED_OBJECTS_URL) for obj in page_objs]
             self.assertEqual(cm.output[0],
                              'ERROR:archimedes.clients.saved_objects:Impossible to retrieve objects at page 1, '
-                             'url http://kibana.biterg.io/api/saved_objects, An internal server error occurred')
+                             'url http://example.com/api/saved_objects, An internal server error occurred')
 
     @httpretty.activate
     def test_fetch_objs_http_error(self):
