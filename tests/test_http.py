@@ -28,7 +28,7 @@ import httpretty
 from archimedes.clients.http import HttpClient, HEADERS
 
 
-KIBANA_URL = 'http://kibana.biterg.io'
+KIBANA_URL = 'http://example.com/'
 
 
 class TestHttpClient(unittest.TestCase):

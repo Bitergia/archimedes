@@ -189,7 +189,7 @@ class TestManager(unittest.TestCase):
         manager = Manager(self.tmp_full)
 
         index_pattern = manager.find_index_pattern(json.loads(visualization))
-        self.assertEqual(index_pattern, "git")
+        self.assertEqual(index_pattern, "7c2496c0-b013-11e8-8771-a349686d998a")
 
     def test_build_folder_path(self):
         """Test whether the folder path is properly built"""

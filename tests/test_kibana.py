@@ -30,7 +30,7 @@ from archimedes.clients.dashboard import (Dashboard,
 from archimedes.errors import (ObjectTypeError,
                                NotFoundError)
 
-KIBANA_URL = 'http://kibana.biterg.io/'
+KIBANA_URL = 'http://example.com/'
 
 DASHBOARD_ID = 'dashboard-id'
 DASHBOARD_TITLE = 'dashboard-title'
