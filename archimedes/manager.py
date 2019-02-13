@@ -187,7 +187,7 @@ class Manager:
         return folder_path
 
     def save_obj(self, obj, force=False):
-        """Save the object to disk
+        """Save the object to disk.
 
         :param obj: the object to be saved
         :param force: overwrite an existing object if already exists on disk
@@ -285,9 +285,10 @@ class Manager:
 
     @staticmethod
     def get_files(folder_path):
-        """Get the files in `folder_path`
+        """Get the files in `folder_path`.
 
         :param folder_path: the path of a folder
         """
-        files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+        files = [f for f in os.listdir(folder_path)
+                 if os.path.isfile(os.path.join(folder_path, f)) and f.endswith(JSON_EXT)]
         return files

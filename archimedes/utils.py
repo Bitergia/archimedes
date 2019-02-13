@@ -21,31 +21,17 @@
 #
 
 import json
-import os
-import unittest
-
-from archimedes.utils import load_json
 
 
-def read_file(filename, mode='r'):
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), filename), mode) as f:
+def load_json(file_path):
+    """Load JSON content from file.
+
+    :param file_path: the path of a JSON file
+
+    :returns: JSON content
+    """
+    with open(file_path, 'r') as f:
         content = f.read()
-    return content
 
-
-class TestUtils(unittest.TestCase):
-    """Utils tests"""
-
-    def test_load_json(self):
-        """Test whether the content of JSON is correctly loaded"""
-
-        target_file = 'data/object_visualization'
-        obj_file = read_file(target_file)
-
-        expected = json.loads(obj_file)
-        self.assertDictEqual(load_json(os.path.join(os.path.dirname(os.path.abspath(__file__)), target_file)),
-                             expected)
-
-
-if __name__ == "__main__":
-    unittest.main(warnings='ignore')
+    json_content = json.loads(content)
+    return json_content
