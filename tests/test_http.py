@@ -35,7 +35,7 @@ class TestHttpClient(unittest.TestCase):
     """Http client tests"""
 
     def test_initialization(self):
-        """Test whether attributes are initializated"""
+        """Test whether attributes are initialized"""
 
         client = HttpClient(KIBANA_URL)
 

@@ -50,7 +50,7 @@ class TestDashboard(unittest.TestCase):
     """Dashboard API tests"""
 
     def test_initialization(self):
-        """Test whether attributes are initializated"""
+        """Test whether attributes are initialized"""
 
         client = Dashboard(KIBANA_URL)
 
