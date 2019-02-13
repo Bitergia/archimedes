@@ -22,15 +22,17 @@
 
 import logging
 
-from archimedes.kibana import Kibana
 from archimedes.clients.dashboard import (DASHBOARD,
                                           INDEX_PATTERN,
                                           SEARCH,
                                           VISUALIZATION)
 from archimedes.errors import (ExportError,
-                               FileTypeError,
-                               ImportError)
+                               ImportError,
+                               ObjectTypeError)
+from archimedes.kibana import Kibana
+from archimedes.kibana_obj_meta import KibanaObjMeta
 from archimedes.manager import Manager
+from archimedes.registry import Registry
 from archimedes.utils import load_json
 
 logger = logging.getLogger(__name__)
@@ -47,9 +49,10 @@ class Archimedes:
     def __init__(self, url, root_path):
         self.kibana = Kibana(url)
         self.manager = Manager(root_path)
+        self.registry = Registry(root_path)
 
-    def import_from_disk(self, obj_type, obj_id=None, obj_title=None, find=False, force=False):
-        """Locate an object based on its type and ID or title on disk and import it to Kibana.
+    def import_from_disk(self, obj_type=None, obj_id=None, obj_title=None, obj_alias=None, find=False, force=False):
+        """Locate an object based on its type and ID, title or alias on disk and import it to Kibana.
         If `find` is set to true, it also loads the related objects (i.e., visualizations,
         search and index pattern) using the `manager`.
 
@@ -59,19 +62,30 @@ class Archimedes:
         :param obj_type: type of the target object
         :param obj_id: ID of the target object
         :param obj_title: title of the target object
+        :param obj_alias: alias of the target object
         :param find: find the objects referenced in the file
 
         :param force: overwrite any existing objects on ID conflict
         """
-        folder_path = self.manager.build_folder_path(obj_type)
-
-        if obj_id:
-            file_name = self.manager.build_file_name(obj_type, obj_id)
-            file_path = self.manager.find_file_by_name(folder_path, file_name)
-        elif obj_title:
-            file_path = self.manager.find_file_by_content_title(folder_path, obj_title)
+        if obj_alias:
+            alias, meta = self.registry.find(obj_alias)
+            target_obj_type = meta.type
+            target_obj_id = meta.id
+            target_obj_title = None
         else:
-            cause = "Object id and title cannot be null"
+            target_obj_type = obj_type
+            target_obj_id = obj_id
+            target_obj_title = obj_title
+
+        folder_path = self.manager.build_folder_path(target_obj_type)
+
+        if target_obj_id:
+            file_name = self.manager.build_file_name(target_obj_type, target_obj_id)
+            file_path = self.manager.find_file_by_name(folder_path, file_name)
+        elif target_obj_title:
+            file_path = self.manager.find_file_by_content_title(folder_path, target_obj_title)
+        else:
+            cause = "Object id, title or alias cannot be null"
             logger.error(cause)
             raise ImportError(cause=cause)
 
@@ -86,25 +100,25 @@ class Archimedes:
             self.__import_objects([file_path], force)
             return
 
-        if obj_type == DASHBOARD:
+        if target_obj_type == DASHBOARD:
             files = self.manager.find_dashboard_files(file_path)
-        elif obj_type == VISUALIZATION:
+        elif target_obj_type == VISUALIZATION:
             files = self.manager.find_visualization_files(file_path)
-        elif obj_type == SEARCH:
+        elif target_obj_type == SEARCH:
             files = self.manager.find_search_files(file_path)
-        elif obj_type == INDEX_PATTERN:
-            cause = "Find not supported for %s" % obj_type
+        elif target_obj_type == INDEX_PATTERN:
+            cause = "Find not supported for %s" % target_obj_type
             logger.error(cause)
             raise ImportError(cause=cause)
         else:
-            cause = "Object type %s not known" % obj_type
+            cause = "Object type %s not known" % target_obj_type
             logger.error(cause)
-            raise FileTypeError(cause=cause)
+            raise ObjectTypeError(cause=cause)
 
         self.__import_objects(files, force=force)
 
-    def export_to_disk(self, obj_type, obj_id=None, obj_title=None, force=False, index_pattern=False):
-        """Locate an object based on its type and ID or title in Kibana and export it to disk.
+    def export_to_disk(self, obj_type=None, obj_id=None, obj_title=None, obj_alias=None, force=False, index_pattern=False):
+        """Locate an object based on its type and ID, title or alias in Kibana and export it to disk.
         The exported data is divided into several folders according to the type of the objects exported
         (i.e., visualizations, searches and index patterns).
 
@@ -114,6 +128,7 @@ class Archimedes:
         :param obj_type: type of the target object
         :param obj_id: ID of the target object
         :param obj_title: title of the target object
+        :param obj_alias: alias of the target object
         :param force: overwrite an existing file on file name conflict
         :param index_pattern: export also the index pattern
         """
@@ -121,8 +136,11 @@ class Archimedes:
             obj = self.kibana.export_by_id(obj_type, obj_id)
         elif obj_title:
             obj = self.kibana.export_by_title(obj_type, obj_title)
+        elif obj_alias:
+            alias, meta = self.registry.find(obj_alias)
+            obj = self.kibana.export_by_id(meta.type, meta.id)
         else:
-            cause = "Object id and title cannot be null"
+            cause = "Object id, title or alias cannot be null"
             logger.error(cause)
             raise ExportError(cause=cause)
 
