@@ -146,6 +146,23 @@ class Archimedes:
 
         self.__export_objects(obj, force, index_pattern)
 
+    def inspect(self, local=False, remote=False):
+        """List objects handled by Archimedes. The param `local` shows the ones on disk,
+        the param `remote` the ones in Kibana.
+
+        :param local: if true, list the objects on disk
+        :param remote: if true, list the objects in Kibana
+
+        :returns a generator of Kibana objects
+        """
+        objs = []
+        if remote:
+            objs = self.__find_remote_objs()
+        elif local:
+            objs = self.__find_local_objs()
+
+        return objs
+
     def __import_objects(self, obj_paths, force=False):
         """Import dashboard, index pattern, visualization and search objects from a list
         of JSON files to Kibana. Each JSON file can be either a list of objects or a
@@ -199,3 +216,20 @@ class Archimedes:
                 index_pattern_id = self.manager.find_index_pattern(obj)
                 index_pattern_obj = self.kibana.find_by_id(INDEX_PATTERN, index_pattern_id)
                 self.manager.save_obj(index_pattern_obj, force)
+
+    def __find_remote_objs(self):
+        """Return all meta information of dashboard, visualization, index pattern, search objects stored in Kibana"""
+
+        for obj in self.kibana.find_all():
+            if obj['type'] not in [VISUALIZATION, INDEX_PATTERN, SEARCH, DASHBOARD]:
+                continue
+
+            meta_obj = MetaObj.create_from_obj(obj)
+            yield meta_obj
+
+    def __find_local_objs(self):
+        """Return all meta information dashboard, visualization, index pattern, search objects stored on disk"""
+
+        for path, obj in self.manager.find_all():
+            meta_obj = MetaObj.create_from_obj(obj)
+            yield meta_obj
