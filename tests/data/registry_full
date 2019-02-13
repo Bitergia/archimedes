@@ -1,0 +1,79 @@
+{
+    "1": {
+        "id": "maniphest",
+        "title": "maniphest",
+        "type": "index-pattern",
+        "updated_at": "2019-02-12T15:38:42.905Z",
+        "version": 1
+    },
+    "10": {
+        "id": "Maniphest-Search:_status:Open",
+        "title": "Maniphest Search:_status:Open",
+        "type": "search",
+        "updated_at": "2019-02-12T15:38:41.705Z",
+        "version": 1
+    },
+    "11": {
+        "id": "Maniphest-Backlog",
+        "title": "Maniphest Backlog",
+        "type": "dashboard",
+        "updated_at": "2019-02-12T15:38:52.132Z",
+        "version": 1
+    },
+    "2": {
+        "id": "maniphest_openissues_per_organization",
+        "title": "maniphest_openissues_per_organization",
+        "type": "visualization",
+        "updated_at": "2019-02-12T15:38:51.091Z",
+        "version": 1
+    },
+    "3": {
+        "id": "maniphest_backlog",
+        "title": "maniphest_backlog",
+        "type": "visualization",
+        "updated_at": "2019-02-12T15:38:47.023Z",
+        "version": 1
+    },
+    "4": {
+        "id": "maniphest_openissues_submitters",
+        "title": "maniphest_openissues_submitters",
+        "type": "visualization",
+        "updated_at": "2019-02-12T15:38:49.057Z",
+        "version": 1
+    },
+    "5": {
+        "id": "maniphest_openissues_per_project",
+        "title": "maniphest_openissues_per_project",
+        "type": "visualization",
+        "updated_at": "2019-02-12T15:38:44.969Z",
+        "version": 1
+    },
+    "6": {
+        "id": "maniphest_openissues_statistics",
+        "title": "maniphest_openissues_statistics",
+        "type": "visualization",
+        "updated_at": "2019-02-12T15:38:43.959Z",
+        "version": 1
+    },
+    "7": {
+        "id": "maniphest_openissues_backlog_accumulated_time",
+        "title": "maniphest_openissues_backlog_accumulated_time",
+        "type": "visualization",
+        "updated_at": "2019-02-12T15:38:48.023Z",
+        "version": 1
+    },
+    "8": {
+        "id": "maniphest_openissues_backlog",
+        "title": "maniphest_openissues_backlog",
+        "type": "visualization",
+        "updated_at": "2019-02-12T15:38:45.990Z",
+        "version": 1
+    },
+    "9": {
+        "id": "maniphest_openissues_assignee_orgs",
+        "title": "maniphest_openissues_assignee_orgs",
+        "type": "visualization",
+        "updated_at": "2019-02-12T15:38:50.074Z",
+        "version": 1
+    }
+}
