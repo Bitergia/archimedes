@@ -50,7 +50,7 @@ class TestSavedObjects(unittest.TestCase):
     """SavedObjects API tests"""
 
     def test_initialization(self):
-        """Test whether attributes are initializated"""
+        """Test whether attributes are initialized"""
 
         client = SavedObjects(KIBANA_URL)
 
@@ -159,6 +159,37 @@ class TestSavedObjects(unittest.TestCase):
         client = SavedObjects(KIBANA_URL)
         with self.assertRaises(requests.exceptions.HTTPError):
             _ = [obj for page_objs in client.fetch_objs(SAVED_OBJECTS_URL) for obj in page_objs]
+
+    @httpretty.activate
+    def test_fetch_objs_http_error_500(self):
+        """Test whether a warning is logged when a 500 HTTP error occurs"""
+
+        saved_objs_page_1 = read_file('data/objects_1')
+        saved_objs_page_2 = read_file('data/objects_2')
+        saved_objs_page_3 = read_file('data/objects_empty')
+
+        httpretty.register_uri(httpretty.GET,
+                               SAVED_OBJECTS_URL + '?page=3',
+                               body=saved_objs_page_3,
+                               status=200)
+
+        httpretty.register_uri(httpretty.GET,
+                               SAVED_OBJECTS_URL + '?page=2',
+                               body=saved_objs_page_2,
+                               status=500)
+
+        httpretty.register_uri(httpretty.GET,
+                               SAVED_OBJECTS_URL + '?page=1',
+                               body=saved_objs_page_1,
+                               status=200)
+
+        client = SavedObjects(KIBANA_URL)
+        with self.assertLogs(logger) as cm:
+            _ = [obj for page_objs in client.fetch_objs(SAVED_OBJECTS_URL) for obj in page_objs]
+
+        self.assertEqual(cm.output[0],
+                         'WARNING:archimedes.clients.saved_objects:Impossible to retrieve objects at page 2, '
+                         'url http://example.com/api/saved_objects')
 
     @httpretty.activate
     def test_get_object(self):
