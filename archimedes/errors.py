@@ -65,3 +65,9 @@ class ObjectTypeError(BaseError):
     """Error for handling unknown object types"""
 
     message = "%(cause)s"
+
+
+class RegistryError(BaseError):
+    """Error for handling registry errors"""
+
+    message = "%(cause)s"
