@@ -355,20 +355,20 @@ class TestArchimedes(unittest.TestCase):
             archimedes.import_from_disk(VISUALIZATION)
 
     def test_import_from_disk_find_index_pattern(self):
-            """Test whether an error is thrown when importing an index pattern with the flag `find` enabled"""
+        """Test whether an error is thrown when importing an index pattern with the flag `find` enabled"""
 
-            archimedes = MockedArchimedes(KIBANA_URL, self.tmp_full)
-            with self.assertRaises(ImportError):
-                archimedes.import_from_disk(INDEX_PATTERN, obj_id=INDEX_PATTERN_ID_TITLE, find=True)
+        archimedes = MockedArchimedes(KIBANA_URL, self.tmp_full)
+        with self.assertRaises(ImportError):
+            archimedes.import_from_disk(INDEX_PATTERN, obj_id=INDEX_PATTERN_ID_TITLE, find=True)
 
     def test_import_from_disk_not_found(self):
-            """Test whether the method to import Kibana objects raises an error when the object is not found on disk"""
+        """Test whether the method to import Kibana objects raises an error when the object is not found on disk"""
 
-            archimedes = MockedArchimedes(KIBANA_URL, self.tmp_full)
-            target_obj_title = DASHBOARD_ID
+        archimedes = MockedArchimedes(KIBANA_URL, self.tmp_full)
+        target_obj_title = DASHBOARD_ID
 
-            with self.assertRaises(NotFoundError):
-                archimedes.import_from_disk(DASHBOARD, obj_title=target_obj_title)
+        with self.assertRaises(NotFoundError):
+            archimedes.import_from_disk(DASHBOARD, obj_title=target_obj_title)
 
     def test_import_empty_json(self):
         """Test whether a warning message is logged when the file to import is empty"""
