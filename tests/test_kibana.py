@@ -106,7 +106,7 @@ class TestKibana(unittest.TestCase):
     """Kibana tests"""
 
     def test_initialization(self):
-        """Test whether attributes are initializated"""
+        """Test whether attributes are initialized"""
 
         kibana = Kibana(KIBANA_URL)
 
@@ -160,7 +160,7 @@ class TestKibana(unittest.TestCase):
         with self.assertRaises(ObjectTypeError):
             kibana.export_by_title("unknown", "unknown")
 
-    def test_export_by_title_not_found(self):
+    def test_export_by_title_not_found_error(self):
         """Test whether an error is thrown when the object is not found"""
 
         kibana = MockedKibana(KIBANA_URL, OBJECTS)
@@ -203,6 +203,16 @@ class TestKibana(unittest.TestCase):
 
         with self.assertRaises(NotFoundError):
             kibana.find_by_id("unknown", "unknown")
+
+    def test_find_all(self):
+        """Test whether all objects in Kibana are retrieved"""
+
+        kibana = MockedKibana(KIBANA_URL, OBJECTS)
+        objs = [obj for obj in kibana.find_all()]
+
+        self.assertEqual(len(objs), 2)
+        self.assertDictEqual(objs[0], OBJECTS[0][0])
+        self.assertDictEqual(objs[1], OBJECTS[0][1])
 
 
 if __name__ == "__main__":
