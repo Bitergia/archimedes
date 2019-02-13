@@ -163,6 +163,84 @@ class Archimedes:
 
         return objs
 
+    def populate_registry(self, force=False):
+        """Populate the .registry file based on the objects in Kibana. The registry will include a
+        list of entries which contain metadata of the Kibana objects.
+        [
+            "1": {
+                    'id': 'Search:_pull_request:false',
+                    'title': 'Search:_pull_request:false',
+                    'type': 'search',
+                    'version': 1
+            },
+            "2": {
+                    'id': '8539ada0-9960-11e8-8771-a349686d998a',
+                    'title': 'dockerhub',
+                    'type': 'index-pattern',
+                    'version': 1
+            },
+            ...
+        ]
+
+        :param force: overwrite an existing registry entry if already exists
+        """
+        for obj in self.__find_remote_objs():
+            logger.info("Adding object %s to registry", obj.id)
+            self.registry.add(obj, force=force)
+            logger.info("Object %s added to registry", obj.id)
+
+    def query_registry(self, alias):
+        """Query the content of the registry to return the information related to a single `alias`.
+
+        :param alias: the name of the target alias
+
+        :returns: a KibanaObjMeta obj
+        """
+        return self.registry.find(alias)
+
+    def list_registry(self, obj_type=None):
+        """List the content of the registry. If `obj_type` is None, it returns the
+        content of all the registry. Otherwise, it returns the information related to the
+        aliases with the given `obj_type`.
+
+        :param obj_type: the type of the objects to show
+
+        :returns: a generator of aliases in the registry
+        """
+        if obj_type:
+            if obj_type not in [DASHBOARD, VISUALIZATION, SEARCH, INDEX_PATTERN]:
+                cause = "Object type %s is unknown" % obj_type
+                logger.error(cause)
+                raise ObjectTypeError(cause=cause)
+
+        for alias, meta in self.registry.find_all(obj_type):
+            yield alias, meta
+
+    def clear_registry(self):
+        """Delete the content of the registry."""
+
+        logger.info("Clearing registry")
+        self.registry.clear()
+        return
+
+    def delete_registry(self, alias=None):
+        """Delete an alias from the registry.
+
+        :param alias: the name of the target alias
+        """
+        logger.info("Deleting alias %s from registry", alias)
+        self.registry.delete(alias)
+
+    def update_registry(self, alias, new_alias):
+        """Update an alias saved in the registry. If the new alias
+        is already in use, a RegistryError is thrown.
+
+        :param alias: the name of the target alias
+        :param new_alias: the new name of the alias
+        """
+        logger.info("Updating alias %s with %s", alias, new_alias)
+        self.registry.update(alias, new_alias)
+
     def __import_objects(self, obj_paths, force=False):
         """Import dashboard, index pattern, visualization and search objects from a list
         of JSON files to Kibana. Each JSON file can be either a list of objects or a
@@ -224,12 +302,12 @@ class Archimedes:
             if obj['type'] not in [VISUALIZATION, INDEX_PATTERN, SEARCH, DASHBOARD]:
                 continue
 
-            meta_obj = MetaObj.create_from_obj(obj)
+            meta_obj = KibanaObjMeta.create_from_obj(obj)
             yield meta_obj
 
     def __find_local_objs(self):
         """Return all meta information dashboard, visualization, index pattern, search objects stored on disk"""
 
         for path, obj in self.manager.find_all():
-            meta_obj = MetaObj.create_from_obj(obj)
+            meta_obj = KibanaObjMeta.create_from_obj(obj)
             yield meta_obj
