@@ -41,7 +41,6 @@ class Kibana:
 
     :param base_url: the Kibana URL
     """
-
     def __init__(self, base_url):
         self.base_url = base_url
         self.dashboard = Dashboard(base_url)
@@ -148,3 +147,14 @@ class Kibana:
             raise NotFoundError(cause=cause)
 
         return found_obj
+
+    def find_all(self):
+        """Find all objects stored in Kibana.
+
+        :returns a generator of Kibana objects
+        """
+        url = urijoin(self.base_url, self.saved_objects.API_SAVED_OBJECTS_URL)
+
+        for page_objs in self.saved_objects.fetch_objs(url):
+            for obj in page_objs:
+                yield obj
