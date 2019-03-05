@@ -312,17 +312,6 @@ class TestManager(unittest.TestCase):
         actual.sort()
         self.assertListEqual(actual, expected)
 
-    def test_load_json(self):
-        """Test whether the content of JSON is correctly loaded"""
-
-        target_file = 'data/object_visualization'
-        obj_file = read_file(target_file)
-        manager = Manager(self.tmp_full)
-
-        expected = json.loads(obj_file)
-        self.assertDictEqual(manager.load_json(os.path.join(os.path.dirname(os.path.abspath(__file__)), target_file)),
-                             expected)
-
 
 if __name__ == "__main__":
     unittest.main(warnings='ignore')
