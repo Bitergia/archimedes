@@ -107,5 +107,14 @@ class TestNotFoundError(unittest.TestCase):
         self.assertEqual('object not found', str(e))
 
 
+class TestRegistryError(unittest.TestCase):
+
+    def test_message(self):
+        """Test RegistryError message"""
+
+        e = errors.RegistryError(cause='error on registry')
+        self.assertEqual('error on registry', str(e))
+
+
 if __name__ == "__main__":
     unittest.main(warnings='ignore')

@@ -29,6 +29,7 @@ from archimedes.clients.dashboard import (DASHBOARD,
                                           SEARCH,
                                           VISUALIZATION)
 from archimedes.errors import NotFoundError, ObjectTypeError
+from archimedes.utils import load_json
 
 VISUALIZATIONS_FOLDER = 'visualizations'
 INDEX_PATTERNS_FOLDER = 'index-patterns'
@@ -61,7 +62,7 @@ class Manager:
         :returns the list of files containing the objects that compose a dashboard
         """
         dashboard_files = []
-        dash_content = self.load_json(dashboard_path)
+        dash_content = load_json(dashboard_path)
 
         if not self.folder_exists(self.visualizations_folder):
             logger.info("Visualizations not loaded for %s, visualizations folder doesn't exist", dashboard_path)
@@ -96,7 +97,7 @@ class Manager:
         :returns the list of files containing the objects that compose a visualization
         """
         visualization_files = []
-        vis_content = self.load_json(visualization_path)
+        vis_content = load_json(visualization_path)
 
         if not self.folder_exists(self.searches_folder):
             logger.info("Searches won't be loaded for %s, searches folder doesn't exist",
@@ -126,7 +127,7 @@ class Manager:
         :returns the list of files containing the objects that compose a search
         """
         search_files = []
-        search_content = self.load_json(search_path)
+        search_content = load_json(search_path)
 
         index_pattern_id = self.find_index_pattern(search_content)
         if not index_pattern_id:
@@ -223,7 +224,7 @@ class Manager:
         found = None
         for file_name in files:
             file_path = os.path.join(folder_path, file_name)
-            content = Manager.load_json(file_path)
+            content = load_json(file_path)
             if content['attributes']['title'] == content_title:
                 found = file_path
                 break
@@ -290,17 +291,3 @@ class Manager:
         """
         files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
         return files
-
-    @staticmethod
-    def load_json(file_path):
-        """Load JSON content from file.
-
-        :param file_path: the path of a JSON file
-
-        :returns: JSON content
-        """
-        with open(file_path, 'r') as f:
-            content = f.read()
-
-        json_content = json.loads(content)
-        return json_content

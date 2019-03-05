@@ -26,6 +26,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+import unittest.mock
 
 from archimedes.clients.dashboard import (DASHBOARD,
                                           INDEX_PATTERN,
@@ -90,10 +91,6 @@ class MockedManagerEmptyJSON(Manager):
 
     def save_obj(self, obj, force=False):
         return
-
-    @staticmethod
-    def load_json(file_path):
-        return {}
 
 
 class MockedKibana(Kibana):
@@ -370,8 +367,11 @@ class TestArchimedes(unittest.TestCase):
         with self.assertRaises(NotFoundError):
             archimedes.import_from_disk(DASHBOARD, obj_title=target_obj_title)
 
-    def test_import_empty_json(self):
+    @unittest.mock.patch('archimedes.archimedes.load_json')
+    def test_import_empty_json(self, mock_load_json):
         """Test whether a warning message is logged when the file to import is empty"""
+
+        mock_load_json.return_value = {}
 
         archimedes = MockedArchimedesEmpty(KIBANA_URL, self.tmp_full)
         target_obj_id = DASHBOARD_ID

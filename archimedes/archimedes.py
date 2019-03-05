@@ -31,6 +31,7 @@ from archimedes.errors import (ExportError,
                                FileTypeError,
                                ImportError)
 from archimedes.manager import Manager
+from archimedes.utils import load_json
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +75,7 @@ class Archimedes:
             logger.error(cause)
             raise ImportError(cause=cause)
 
-        json_content = self.manager.load_json(file_path)
+        json_content = load_json(file_path)
 
         if not json_content:
             logger.warning("File %s is empty", file_path)
@@ -140,7 +141,7 @@ class Archimedes:
         """
         logger.info("Importing %s objects", len(obj_paths))
         for obj_path in obj_paths:
-            json_content = self.manager.load_json(obj_path)
+            json_content = load_json(obj_path)
 
             if not json_content:
                 logger.warning("No objects in %s", obj_path)
