@@ -80,13 +80,14 @@ class TestManager(unittest.TestCase):
         cls.tmp_full = os.path.join(cls.tmp_repo_path, 'collection-full')
         cls.tmp_only_viz = os.path.join(cls.tmp_repo_path, 'collection-viz')
         cls.tmp_only_dash = os.path.join(cls.tmp_repo_path, 'collection-dashboard')
+        cls.tmp_empty = os.path.join(cls.tmp_repo_path, 'collection-empty')
 
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.tmp_path)
 
     def test_initialization(self):
-        """Test whether attributes are initializated"""
+        """Test whether attributes are initialized"""
 
         manager = Manager(self.tmp_full)
 
@@ -311,6 +312,56 @@ class TestManager(unittest.TestCase):
         actual = manager.get_files(manager.visualizations_folder)
         actual.sort()
         self.assertListEqual(actual, expected)
+
+    def test_find_all(self):
+        """Test whether all objects are found on disk"""
+
+        manager = Manager(self.tmp_full)
+        objs = [t[1] for t in manager.find_all()]
+
+        self.assertEqual(len(objs), 11)
+
+        dashboards = [obj for obj in objs if obj['type'] == DASHBOARD]
+        self.assertEqual(len(dashboards), 1)
+
+        visualizations = [obj for obj in objs if obj['type'] == VISUALIZATION]
+        self.assertEqual(len(visualizations), 8)
+
+        index_patterns = [obj for obj in objs if obj['type'] == INDEX_PATTERN]
+        self.assertEqual(len(index_patterns), 1)
+
+        searches = [obj for obj in objs if obj['type'] == SEARCH]
+        self.assertEqual(len(searches), 1)
+
+    def test_find_all_empty(self):
+        """Test whether no objects are found when the archimedes folder is empty"""
+
+        os.mkdir(self.tmp_empty)
+
+        manager = Manager(self.tmp_empty)
+        objs = [f for f in manager.find_all()]
+
+        self.assertEqual(len(objs), 0)
+
+        shutil.rmtree(self.tmp_empty)
+
+    def test_find_all_empty_other_files(self):
+        """Test whether no objects are found when the archimedes folder includes files not
+        being dashboards, visualizations, searches or index patterns
+        """
+        os.mkdir(self.tmp_empty)
+
+        registry_path = os.path.join(self.tmp_empty, '.registry')
+        open(registry_path, 'w+').close()
+
+        self.assertTrue(os.path.exists(registry_path))
+
+        manager = Manager(self.tmp_empty)
+        objs = [f for f in manager.find_all()]
+
+        self.assertEqual(len(objs), 0)
+
+        shutil.rmtree(self.tmp_empty)
 
 
 if __name__ == "__main__":

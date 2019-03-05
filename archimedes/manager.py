@@ -187,7 +187,7 @@ class Manager:
         return folder_path
 
     def save_obj(self, obj, force=False):
-        """Save the object to disk
+        """Save the object to disk.
 
         :param obj: the object to be saved
         :param force: overwrite an existing object if already exists on disk
@@ -265,6 +265,22 @@ class Manager:
 
         return found
 
+    def find_all(self):
+        """Find all objects stored on disk together with their corresponding file paths.
+
+        :returns: a generator of tuples composed by Kibana objects and their file paths
+        """
+        for path, subdirs, files in os.walk(self.root_path):
+            for name in files:
+                if not any(name.startswith(t) for t in [VISUALIZATION, INDEX_PATTERN, SEARCH, DASHBOARD]):
+                    continue
+
+                file_path = os.path.join(path, name)
+                with open(file_path, 'r') as f:
+                    content = f.read()
+                content = json.loads(content)
+                yield file_path, content
+
     @staticmethod
     def build_file_name(obj_type, obj_id):
         """Build the name of a file according to the object type and ID.
@@ -285,9 +301,10 @@ class Manager:
 
     @staticmethod
     def get_files(folder_path):
-        """Get the files in `folder_path`
+        """Get the files in `folder_path`.
 
         :param folder_path: the path of a folder
         """
-        files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
+        files = [f for f in os.listdir(folder_path)
+                 if os.path.isfile(os.path.join(folder_path, f)) and f.endswith(JSON_EXT)]
         return files
