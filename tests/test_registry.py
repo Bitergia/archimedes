@@ -111,6 +111,7 @@ class TestRegistry(unittest.TestCase):
 
         self.assertEqual(len(tuples), 11)
 
+        tuples.sort()
         alias = tuples[0][0]
         expected_alias = '1'
         self.assertEqual(alias, expected_alias)
@@ -143,6 +144,7 @@ class TestRegistry(unittest.TestCase):
 
         self.assertEqual(len(tuples), 8)
 
+        tuples.sort()
         alias = tuples[0][0]
         expected_alias = '2'
         self.assertEqual(alias, expected_alias)
@@ -317,6 +319,8 @@ class TestRegistry(unittest.TestCase):
         registry.update('1', 'x')
 
         tuples = [t for t in registry.find_all()]
+
+        tuples.sort()
         alias = tuples[0][0]
         self.assertEqual(alias, '2')
         alias = tuples[1][0]
