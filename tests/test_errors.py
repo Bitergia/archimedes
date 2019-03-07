@@ -67,7 +67,7 @@ class TestImportError(unittest.TestCase):
     def test_message(self):
         """Test ImportError message"""
 
-        e = errors.ImportError(cause='something went wrong during Import')
+        e = errors.DataImportError(cause='something went wrong during Import')
         self.assertEqual('something went wrong during Import', str(e))
 
 
@@ -76,7 +76,7 @@ class TestExportError(unittest.TestCase):
     def test_message(self):
         """Test ExportError message"""
 
-        e = errors.ExportError(cause='something went wrong during Export')
+        e = errors.DataExportError(cause='something went wrong during Export')
         self.assertEqual('something went wrong during Export', str(e))
 
 

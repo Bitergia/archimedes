@@ -311,6 +311,8 @@ class TestRegistry(unittest.TestCase):
         registry = Registry(self.tmp_path)
 
         tuples = [t for t in registry.find_all()]
+        tuples.sort()
+
         alias = tuples[0][0]
         self.assertEqual(alias, '1')
         alias = tuples[1][0]
