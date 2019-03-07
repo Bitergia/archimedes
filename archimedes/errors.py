@@ -37,7 +37,7 @@ class BaseError(Exception):
         return self.msg
 
 
-class ImportError(BaseError):
+class DataImportError(BaseError):
     """Error for handling import errors"""
 
     message = "%(cause)s"
@@ -49,7 +49,7 @@ class FileTypeError(BaseError):
     message = "%(cause)s"
 
 
-class ExportError(BaseError):
+class DataExportError(BaseError):
     """Error for handling export errors"""
 
     message = "%(cause)s"

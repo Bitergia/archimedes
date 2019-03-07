@@ -30,7 +30,7 @@ import requests
 from archimedes.clients.http import HEADERS
 from archimedes.clients.dashboard import (logger,
                                           Dashboard)
-from archimedes.errors import ExportError
+from archimedes.errors import DataExportError
 
 
 KIBANA_URL = 'http://example.com/'
@@ -86,7 +86,7 @@ class TestDashboard(unittest.TestCase):
                                status=200)
 
         client = Dashboard(KIBANA_URL)
-        with self.assertRaises(ExportError):
+        with self.assertRaises(DataExportError):
             _ = client.export_dashboard(DASHBOARD_ID)
 
     @httpretty.activate
@@ -101,7 +101,7 @@ class TestDashboard(unittest.TestCase):
                                status=400)
 
         client = Dashboard(KIBANA_URL)
-        with self.assertRaises(ExportError):
+        with self.assertRaises(DataExportError):
             _ = client.export_dashboard(DASHBOARD_ID)
 
     @httpretty.activate

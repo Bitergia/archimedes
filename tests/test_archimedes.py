@@ -36,8 +36,8 @@ from archimedes.manager import (INDEX_PATTERNS_FOLDER,
                                 VISUALIZATIONS_FOLDER)
 from archimedes.archimedes import (logger,
                                    Archimedes)
-from archimedes.errors import (ExportError,
-                               ImportError,
+from archimedes.errors import (DataExportError,
+                               DataImportError,
                                NotFoundError,
                                ObjectTypeError,
                                RegistryError)
@@ -494,14 +494,14 @@ class TestArchimedes(unittest.TestCase):
         """Test whether the method to import Kibana objects raises an error when the id and title is not provided"""
 
         archimedes = MockedArchimedes(KIBANA_URL, self.tmp_full)
-        with self.assertRaises(ImportError):
+        with self.assertRaises(DataImportError):
             archimedes.import_from_disk(VISUALIZATION)
 
     def test_import_from_disk_find_index_pattern(self):
         """Test whether an error is thrown when importing an index pattern with the flag `find` enabled"""
 
         archimedes = MockedArchimedes(KIBANA_URL, self.tmp_full)
-        with self.assertRaises(ImportError):
+        with self.assertRaises(DataImportError):
             archimedes.import_from_disk(INDEX_PATTERN, obj_id=INDEX_PATTERN_ID_TITLE, find=True)
 
     def test_import_from_disk_not_found(self):
@@ -646,7 +646,7 @@ class TestArchimedes(unittest.TestCase):
         """Test whether the method to export Kibana objects raises an error when the id and title is not provided"""
 
         archimedes = MockedArchimedes(KIBANA_URL, self.tmp_full)
-        with self.assertRaises(ExportError):
+        with self.assertRaises(DataExportError):
             archimedes.export_to_disk(VISUALIZATION)
 
     def test_export_from_disk_alias_not_found(self):

@@ -26,8 +26,8 @@ from archimedes.clients.dashboard import (DASHBOARD,
                                           INDEX_PATTERN,
                                           SEARCH,
                                           VISUALIZATION)
-from archimedes.errors import (ExportError,
-                               ImportError,
+from archimedes.errors import (DataExportError,
+                               DataImportError,
                                ObjectTypeError)
 from archimedes.kibana import Kibana
 from archimedes.kibana_obj_meta import KibanaObjMeta
@@ -87,7 +87,7 @@ class Archimedes:
         else:
             cause = "Object id, title or alias cannot be null"
             logger.error(cause)
-            raise ImportError(cause=cause)
+            raise DataImportError(cause=cause)
 
         json_content = load_json(file_path)
 
@@ -109,7 +109,7 @@ class Archimedes:
         elif target_obj_type == INDEX_PATTERN:
             cause = "Find not supported for %s" % target_obj_type
             logger.error(cause)
-            raise ImportError(cause=cause)
+            raise DataImportError(cause=cause)
         else:
             cause = "Object type %s not known" % target_obj_type
             logger.error(cause)
@@ -142,7 +142,7 @@ class Archimedes:
         else:
             cause = "Object id, title or alias cannot be null"
             logger.error(cause)
-            raise ExportError(cause=cause)
+            raise DataExportError(cause=cause)
 
         self.__export_objects(obj, force, index_pattern)
 
