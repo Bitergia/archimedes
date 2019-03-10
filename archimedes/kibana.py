@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2014-2018 Bitergia
+# Copyright (C) 2014-2019 Bitergia
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -35,7 +35,9 @@ logger = logging.getLogger(__name__)
 
 
 class Kibana:
-    """This class defines operations performed against the Dashboard and
+    """Kibana class.
+
+    This class defines operations performed against the Dashboard and
     the SavedObjects APIs, such as exporting and importing objects as well
     as searching objects by ID or title.
 
@@ -49,8 +51,17 @@ class Kibana:
     def export_by_id(self, obj_type, obj_id):
         """Export an object identified by its ID.
 
+        This method returns an object saved in Kibana based on its type and ID.
+
+        An `ObjectTypeError` is thrown if the type of the object is not one of
+        the following: dashboard, index pattern, search, visualization.
+
+        A `NotFoundError` is thrown if the object is not found in the Kibana instance.
+
         :param obj_type: type of the target object
         :param obj_id: ID of the target object
+
+        :returns the target Kibana object
         """
         if obj_type == DASHBOARD:
             obj = self.dashboard.export_dashboard(obj_id)
@@ -71,8 +82,17 @@ class Kibana:
     def export_by_title(self, obj_type, obj_title):
         """Export an object identified by its title.
 
+        This method returns an object saved in Kibana based on its type and title.
+
+        An `ObjectTypeError` is thrown if the type of the object is not one of
+        the following: dashboard, index pattern, search, visualization.
+
+        A `NotFoundError` is thrown if the object is not found in the Kibana instance.
+
         :param obj_type: type of the target object
         :param obj_title: title of the target object
+
+        :returns the target Kibana object
         """
         if obj_type not in [DASHBOARD, INDEX_PATTERN, SEARCH, VISUALIZATION]:
             cause = "Unknown type %s" % obj_type
@@ -95,6 +115,8 @@ class Kibana:
     def import_objects(self, objects, force=False):
         """Import a list of objects to Kibana.
 
+        This method imports a list of Kibana objects to Kibana by using the Dashboard API.
+
         :param objects: list of objects to import
         :param force: overwrite any existing objects on ID conflict
         """
@@ -102,6 +124,10 @@ class Kibana:
 
     def find_by_title(self, obj_type, obj_title):
         """Find an object by its type and title.
+
+        This methods returns a Kibana object based on its type and title.
+
+        A `NotFoundError` is thrown if the object is not found in the Kibana instance.
 
         :param obj_type: type of the target object
         :param obj_title: title of the target object
@@ -125,7 +151,11 @@ class Kibana:
         return found_obj
 
     def find_by_id(self, obj_type, obj_id):
-        """Find an object by its type and title.
+        """Find an object by its type and ID.
+
+        This methods returns a Kibana object based on its type and ID.
+
+        A `NotFoundError` is thrown if the object is not found in the Kibana instance.
 
         :param obj_type: type of the target object
         :param obj_id: ID of the target object
@@ -150,6 +180,8 @@ class Kibana:
 
     def find_all(self):
         """Find all objects stored in Kibana.
+
+        This method returns all remote Kibana objects using the SavedObject API.
 
         :returns a generator of Kibana objects
         """
