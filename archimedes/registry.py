@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2014-2018 Bitergia
+# Copyright (C) 2014-2019 Bitergia
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -36,9 +36,11 @@ REGISTRY_NAME = ".registry"
 class Registry:
 
     def __init__(self, root_path):
-        """This class allows to manipulate the Kibana objects using aliases, thus avoiding the user
-        to deal with their IDs and titles. The registry is saved in the root folder of Archimedes,
-        with name .registry. The content of the registry is as following:
+        """Registry class.
+
+        This class allows to handle the meta objects associated to the Kibana objects using aliases,
+        thus avoiding the user to deal with their IDs and titles. The registry is saved in the root
+        folder of Archimedes, with name .registry. The content of the registry is as following:
         [
             "1": {
                     'id': 'Search:_pull_request:false',
@@ -65,7 +67,9 @@ class Registry:
         self.content = load_json(self.path)
 
     def find_all(self, obj_type=None):
-        """Return the entries in the registry. If `obj_type` is none, it returns the
+        """Find all meta information related to the Kibana objects stored in the registry.
+
+        This method returns the KibanaObjMeta in the registry. If `obj_type` is None, it returns the
         content of all the registry. Otherwise, it returns the entries related to the
         aliases with the given `obj_type`.
 
@@ -84,7 +88,10 @@ class Registry:
                 yield alias, meta
 
     def find(self, alias):
-        """Return the entry linked to an alias in the registry.
+        """Find the meta information of a Kibana object based on its alias.
+
+        This method retrieves from the registry the target alias and
+        KibanaObjMeta linked to it.
 
         :param alias: target alias
 
@@ -99,10 +106,8 @@ class Registry:
         return alias, meta
 
     def clear(self):
-        """Clear the registry content.
+        """Clear the registry content."""
 
-        :param alias: target alias
-        """
         self.content.clear()
 
         self.__save_registry(self.content)
@@ -110,7 +115,12 @@ class Registry:
         return
 
     def delete(self, alias=None):
-        """Delete an entry in the registry based on a given `alias`.
+        """Delete an alias from the registry.
+
+        This method deletes an alias (and its associated KibanaObjMeta) from the registry
+        based on a given `alias`.
+
+        A `NotFoundError` is thrown if the alias is not found.
 
         :param alias: target alias
         """
@@ -126,6 +136,11 @@ class Registry:
 
     def add(self, meta_obj, force=False):
         """Add the meta information of a kibana object to the registry.
+
+        This method adds the KibanaObjMeta to the registry. The alias is automatically assigned
+        based on the current number of aliases in the registry.
+
+        A `RegistryError` is thrown when a KibanaObjMeta already exists in the registry.
 
         :param meta_obj: the target meta object
         :param force: overwrite an existing registry entry if already exists
@@ -152,7 +167,12 @@ class Registry:
             raise RegistryError(cause=cause)
 
     def update(self, old_alias, new_alias):
-        """Change the name of an alias with a new one
+        """Update the name of an alias with a new one.
+
+        This method replaces the name of `old_alias` with `new_alias`.
+
+        A `NotFoundError` is thrown if the `old_alias` is not found in the registry.
+        A `RegistryError` is thrown if the `new_alias` is already in use.
 
         :param old_alias: target alias
         :param new_alias: new alias
