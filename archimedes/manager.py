@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2014-2018 Bitergia
+# Copyright (C) 2014-2019 Bitergia
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,7 +41,9 @@ logger = logging.getLogger(__name__)
 
 
 class Manager:
-    """This class allows to find and manage dashboard, visualization,
+    """Manager class.
+
+    This class allows to find and manage dashboard, visualization,
     search and index pattern files saved on disk.
 
     ::param root_path: folder where visualizations, searches and index patterns are stored
@@ -53,7 +55,9 @@ class Manager:
         self.index_patterns_folder = os.path.join(folder_path, INDEX_PATTERNS_FOLDER)
 
     def find_dashboard_files(self, dashboard_path):
-        """Find the files containing the objects referenced in `dashboard_path`
+        """Find the dashboard-related files (visualizations, searches, index patterns) saved on disk.
+
+        This method locates the files containing the objects referenced in `dashboard_path`
         by looking into `visualizations_folder`, `searches_folder` and
         `index_patterns_folder`.
 
@@ -89,7 +93,9 @@ class Manager:
         return dashboard_files
 
     def find_visualization_files(self, visualization_path):
-        """Find the files containing the objects referenced in `visualization_path`
+        """Find the visualization-related files (searches, index patterns) saved on disk.
+
+        This method locates the files containing the objects referenced in `visualization_path`
         by looking into `searches_folder` and `index_patterns_folder`.
 
         :param visualization_path: path of the visualization to import
@@ -121,7 +127,9 @@ class Manager:
         return visualization_files
 
     def find_search_files(self, search_path):
-        """Find the files containing the objects referenced in `search_path`
+        """Find the search-related files (index patterns) saved on disk.
+
+        This method locates the files containing the objects referenced in `search_path`
         by looking into `index_patterns_folder`.
 
         :returns the list of files containing the objects that compose a search
@@ -146,6 +154,8 @@ class Manager:
     def find_index_pattern(self, obj):
         """Find the index pattern id in an `obj`.
 
+        This method extracts the index pattern defined in a Kibana object.
+
         :param obj: Kibana object
 
         :returns the index pattern id
@@ -163,6 +173,8 @@ class Manager:
 
     def build_folder_path(self, obj_type):
         """Build the path of a folder according to the object type.
+
+        This method builds the folder using the `obj_type` passed in input.
 
         :param obj_type: type of the object
         """
@@ -189,6 +201,11 @@ class Manager:
     def save_obj(self, obj, force=False):
         """Save the object to disk.
 
+        This method serializes a Kibana object to disk. It can overwrite previous versions of
+        existing object by setting the parameter `force` to True. In case `force` is not True,
+        and the object exists, a warning message is logged to notify the user that the object
+        cannot be overwritte.
+
         :param obj: the object to be saved
         :param force: overwrite an existing object if already exists on disk
         """
@@ -207,8 +224,11 @@ class Manager:
 
     @staticmethod
     def find_file_by_content_title(folder_path, content_title):
-        """Find a file with a title equal to `content_title` in a `folder_path`. The method
-        raises a `FileNotFoundError` in case the file is not found.
+        """Find a file on disk by its content title.
+
+        This method locates a file with a title equal to `content_title` in
+        a `folder_path`. The method raises a `NotFoundError` in case the file
+        is not found.
 
         :param folder_path: the folder where to look for the file
         :param content_title: the content title of the target file
@@ -238,8 +258,10 @@ class Manager:
 
     @staticmethod
     def find_file_by_name(folder_path, target_name):
-        """Find a file with `target_name` in a `folder_path`. The method
-        raises a `FileNotFoundError` in case the file is not found.
+        """Find a file on disk by its name.
+
+        This method locates a file with `target_name` in a `folder_path`. The method
+        raises a `NotFoundError` in case the file is not found.
 
         :param folder_path: the folder where to look for the file
         :param target_name: the name of the target file
@@ -266,7 +288,9 @@ class Manager:
         return found
 
     def find_all(self):
-        """Find all objects stored on disk together with their corresponding file paths.
+        """Find all objects on disk.
+
+        This method returns all objects stored on disk together with their corresponding file paths.
 
         :returns: a generator of tuples composed by Kibana objects and their file paths
         """
@@ -283,7 +307,9 @@ class Manager:
 
     @staticmethod
     def build_file_name(obj_type, obj_id):
-        """Build the name of a file according to the object type and ID.
+        """Build the file name where a Kibana object is stored.
+
+        This method builds the name of a file according to the object type and ID.
 
         :param obj_type: type of the object
         :param obj_id: ID of the object
