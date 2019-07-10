@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2015-2018 Bitergia
+# Copyright (C) 2015-2019 Bitergia
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -38,36 +38,36 @@ class BaseError(Exception):
 
 
 class DataImportError(BaseError):
-    """Error for handling import errors"""
+    """Error for handling import errors."""
 
     message = "%(cause)s"
 
 
 class FileTypeError(BaseError):
-    """Error for handling unknown file types"""
+    """Error for handling unknown file types."""
 
     message = "%(cause)s"
 
 
 class DataExportError(BaseError):
-    """Error for handling export errors"""
+    """Error for handling export errors."""
 
     message = "%(cause)s"
 
 
 class NotFoundError(BaseError):
-    """Error for handling not found errors"""
+    """Error for handling not found errors."""
 
     message = "%(cause)s"
 
 
 class ObjectTypeError(BaseError):
-    """Error for handling unknown object types"""
+    """Error for handling unknown object types."""
 
     message = "%(cause)s"
 
 
 class RegistryError(BaseError):
-    """Error for handling registry errors"""
+    """Error for handling registry errors."""
 
     message = "%(cause)s"

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2014-2018 Bitergia
+# Copyright (C) 2014-2019 Bitergia
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,9 +39,13 @@ logger = logging.getLogger(__name__)
 
 
 class Archimedes:
-    """This class allows the import and export objects such as
-    dashboards, visualizations, searches and index patterns to
-    and from a Kibana instance.
+    """Archimedes class.
+
+    This class handles Kibana objects (such as dashboards, visualizations, searches and index patterns)
+    stored in a Kibana instance and/or on disk (the `root_path` of Archimedes). Archimedes allows to
+    import (from disk to Kibana), export (from Kibana to disk) and list Kibana objects. Furthermore,
+    Archimedes provides also a registry, in charge of managing the metadata of Kibana objects to which
+    the user can assign aliases to simply import and export operations of the corresponding objects.
 
     ::param url: the Kibana URL
     :param root_path: the folder where visualizations, searches and index patterns are stored
@@ -52,12 +56,14 @@ class Archimedes:
         self.registry = Registry(root_path)
 
     def import_from_disk(self, obj_type=None, obj_id=None, obj_title=None, obj_alias=None, find=False, force=False):
-        """Locate an object based on its type and ID, title or alias on disk and import it to Kibana.
-        If `find` is set to true, it also loads the related objects (i.e., visualizations,
+        """Import Kibana objects stored on disk.
+
+        Locate an object on disk based on its type and ID, title or alias and import it to Kibana.
+        If `find` is set to True, it also loads the related objects (i.e., visualizations,
         search and index pattern) using the `manager`.
 
         The method can overwrite previous versions of existing objects by setting
-        the parameter `force` to true.
+        the parameter `force` to True.
 
         :param obj_type: type of the target object
         :param obj_id: ID of the target object
@@ -85,7 +91,7 @@ class Archimedes:
         elif target_obj_title:
             file_path = self.manager.find_file_by_content_title(folder_path, target_obj_title)
         else:
-            cause = "Object id, title or alias cannot be null"
+            cause = "Object id, title or alias cannot be None"
             logger.error(cause)
             raise DataImportError(cause=cause)
 
@@ -118,12 +124,14 @@ class Archimedes:
         self.__import_objects(files, force=force)
 
     def export_to_disk(self, obj_type=None, obj_id=None, obj_title=None, obj_alias=None, force=False, index_pattern=False):
-        """Locate an object based on its type and ID, title or alias in Kibana and export it to disk.
+        """Export Kibana objects stored in a Kibana instance to disk.
+
+        Locate an object in Kibana based on its type and ID, title or alias and export it to disk.
         The exported data is divided into several folders according to the type of the objects exported
-        (i.e., visualizations, searches and index patterns).
+        (e.g., visualizations, searches and index patterns).
 
         The method can overwrite previous versions of existing files by setting the
-        parameter `force` to true.
+        parameter `force` to True.
 
         :param obj_type: type of the target object
         :param obj_id: ID of the target object
@@ -140,18 +148,20 @@ class Archimedes:
             alias, meta = self.registry.find(obj_alias)
             obj = self.kibana.export_by_id(meta.type, meta.id)
         else:
-            cause = "Object id, title or alias cannot be null"
+            cause = "Object id, title or alias cannot be None"
             logger.error(cause)
             raise DataExportError(cause=cause)
 
         self.__export_objects(obj, force, index_pattern)
 
     def inspect(self, local=False, remote=False):
-        """List objects handled by Archimedes. The param `local` shows the ones on disk,
-        the param `remote` the ones in Kibana.
+        """List the Kibana objects stored remotely (in the Kibana instance) or locally (on disk).
 
-        :param local: if true, list the objects on disk
-        :param remote: if true, list the objects in Kibana
+        The method lists objects handled by Archimedes. The param `local` shows the ones on disk,
+        while the param `remote` the ones in Kibana.
+
+        :param local: if True, list the objects on disk
+        :param remote: if True, list the objects in Kibana
 
         :returns a generator of Kibana objects
         """
@@ -164,8 +174,12 @@ class Archimedes:
         return objs
 
     def populate_registry(self, force=False):
-        """Populate the .registry file based on the objects in Kibana. The registry will include a
-        list of entries which contain metadata of the Kibana objects.
+        """Populate the content of the registry using the remote Kibana objects.
+
+        The method populates the .registry file using the objects in the Kibana instance. The
+        registry includes a list of entries which contain metadata of the Kibana objects, where
+        each entry has an alias associated, as the example below:
+
         [
             "1": {
                     'id': 'Search:_pull_request:false',
@@ -190,7 +204,10 @@ class Archimedes:
             logger.info("Object %s added to registry", obj.id)
 
     def query_registry(self, alias):
-        """Query the content of the registry to return the information related to a single `alias`.
+        """Query the content of the registry.
+
+        This method queries the content of the registry to return the metadata
+        information associated to a single `alias`.
 
         :param alias: the name of the target alias
 
@@ -199,7 +216,9 @@ class Archimedes:
         return self.registry.find(alias)
 
     def list_registry(self, obj_type=None):
-        """List the content of the registry. If `obj_type` is None, it returns the
+        """List the content of the registry.
+
+        This method lists the content of the .registry file. If `obj_type` is None, it returns the
         content of all the registry. Otherwise, it returns the information related to the
         aliases with the given `obj_type`.
 
@@ -217,7 +236,7 @@ class Archimedes:
             yield alias, meta
 
     def clear_registry(self):
-        """Delete the content of the registry."""
+        """Clear the content of the registry."""
 
         logger.info("Clearing registry")
         self.registry.clear()
@@ -226,14 +245,18 @@ class Archimedes:
     def delete_registry(self, alias=None):
         """Delete an alias from the registry.
 
+        This method removes the information associated to an alias.
+
         :param alias: the name of the target alias
         """
         logger.info("Deleting alias %s from registry", alias)
         self.registry.delete(alias)
 
     def update_registry(self, alias, new_alias):
-        """Update an alias saved in the registry. If the new alias
-        is already in use, a RegistryError is thrown.
+        """Update an alias saved in the registry.
+
+        This method allows to rename an alias with a new one. If the
+        new alias is already in use, a RegistryError is thrown.
 
         :param alias: the name of the target alias
         :param new_alias: the new name of the alias
@@ -242,12 +265,14 @@ class Archimedes:
         self.registry.update(alias, new_alias)
 
     def __import_objects(self, obj_paths, force=False):
-        """Import dashboard, index pattern, visualization and search objects from a list
+        """Import Kibana object to the Kibana instance.
+
+        This method imports dashboard, index pattern, visualization and search objects from a list
         of JSON files to Kibana. Each JSON file can be either a list of objects or a
         dict having a key 'objects' with a list of objects as value (e.g,, {'objects': [...]}.
 
         The method can overwrite previous versions of existing objects by setting
-        the parameter `force` to true.
+        the parameter `force` to True.
 
         :param obj_paths: target object paths
         :param force: overwrite any existing objects on ID conflict
@@ -269,12 +294,14 @@ class Archimedes:
             self.kibana.import_objects(objects, force)
 
     def __export_objects(self, data, force, index_pattern=False):
-        """Export Kibana objects to disk. The exported data is divided into several
+        """Export Kibana objects to disk.
+
+        This method exports the Kibana objects stored remotely. They are saved to several
         folders according to the type of the objects exported (e.g., visualizations,
         searches and index patterns).
 
         The method can overwrite previous versions of existing files by setting the
-        parameter `force` to true.
+        parameter `force` to True.
 
         :param data: data to export (it can be a single object or a list)
         :param force: overwrite an existing file on file name conflict
@@ -296,7 +323,7 @@ class Archimedes:
                 self.manager.save_obj(index_pattern_obj, force)
 
     def __find_remote_objs(self):
-        """Return all meta information of dashboard, visualization, index pattern, search objects stored in Kibana"""
+        """Return the meta information of the Kibana objects stored in Kibana."""
 
         for obj in self.kibana.find_all():
             if obj['type'] not in [VISUALIZATION, INDEX_PATTERN, SEARCH, DASHBOARD]:
@@ -306,7 +333,7 @@ class Archimedes:
             yield meta_obj
 
     def __find_local_objs(self):
-        """Return all meta information dashboard, visualization, index pattern, search objects stored on disk"""
+        """Return the meta information of the Kibana objects stored on disk."""
 
         for path, obj in self.manager.find_all():
             meta_obj = KibanaObjMeta.create_from_obj(obj)

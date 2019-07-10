@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2014-2018 Bitergia
+# Copyright (C) 2014-2019 Bitergia
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -54,6 +54,13 @@ class Dashboard(HttpClient):
     def export_dashboard(self, dashboard_id):
         """Export a dashboard identified by its ID.
 
+        This method returns a dashboard based on `dashboard_id` using the endpoint
+        `export` of the Dashboard API.
+
+        A `DataExportError` is thrown if the API returned an error message
+        or if a 400 HTTP error occurred. Other HTTP errors are not incapsulated and returned
+        as they are.
+
         :param dashboard_id: ID of the dashboard
 
         :returns the dashboard exported
@@ -81,13 +88,16 @@ class Dashboard(HttpClient):
 
     def import_objects(self, objects, exclude_dashboards=False, exclude_index_patterns=False,
                        exclude_visualizations=False, exclude_searches=False, force=False):
-        """Import objects from a dictionary.
+        """Import objects from a dictionary to Kibana.
+
+        This method import a list of objects to the Kibana instance using the
+        endpoint `import` of the Dashboard API.
 
         :param objects: list of objects
         :param exclude_dashboards: do not import dashboards
         :param exclude_index_patterns: do not import index patterns
         :param exclude_visualizations: do not import visualizations
-        :param exclude_searches: do not import searches
+        :param exclude_searches: do not import searchesDataExportError
         :param force: overwrite any existing objects on ID conflict
         """
         url = urijoin(self.base_url, self.API_DASHBOARDS_URL, self.API_IMPORT_COMMAND)
