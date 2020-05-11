@@ -67,22 +67,22 @@ class TestSavedObjects(unittest.TestCase):
         saved_objs_page_3 = read_file('data/objects_empty')
 
         httpretty.register_uri(httpretty.GET,
-                               SAVED_OBJECTS_URL + '?page=3',
+                               SAVED_OBJECTS_URL + '/_find?page=3',
                                body=saved_objs_page_3,
                                status=200)
 
         httpretty.register_uri(httpretty.GET,
-                               SAVED_OBJECTS_URL + '?page=2',
+                               SAVED_OBJECTS_URL + '/_find?page=2',
                                body=saved_objs_page_2,
                                status=200)
 
         httpretty.register_uri(httpretty.GET,
-                               SAVED_OBJECTS_URL + '?page=1',
+                               SAVED_OBJECTS_URL + '/_find?page=1',
                                body=saved_objs_page_1,
                                status=200)
 
         client = SavedObjects(KIBANA_URL)
-        fetched_objs = [obj for page_objs in client.fetch_objs(SAVED_OBJECTS_URL) for obj in page_objs]
+        fetched_objs = [obj for page_objs in client.find(SAVED_OBJECTS_URL, obj_type='visualization') for obj in page_objs]
         self.assertEqual(len(fetched_objs), 4)
 
         obj = fetched_objs[0]
@@ -112,12 +112,12 @@ class TestSavedObjects(unittest.TestCase):
         saved_objs_empty = read_file('data/objects_empty')
 
         httpretty.register_uri(httpretty.GET,
-                               SAVED_OBJECTS_URL + '?page=1',
+                               SAVED_OBJECTS_URL + '/_find?page=1',
                                body=saved_objs_empty,
                                status=200)
 
         client = SavedObjects(KIBANA_URL)
-        fetched_objs = [obj for page_objs in client.fetch_objs(SAVED_OBJECTS_URL) for obj in page_objs]
+        fetched_objs = [obj for page_objs in client.find(SAVED_OBJECTS_URL, obj_type='dashboard') for obj in page_objs]
         self.assertEqual(len(fetched_objs), 0)
 
     @httpretty.activate
@@ -128,18 +128,18 @@ class TestSavedObjects(unittest.TestCase):
         saved_objs_empty = read_file('data/objects_empty')
 
         httpretty.register_uri(httpretty.GET,
-                               SAVED_OBJECTS_URL + '?page=2',
+                               SAVED_OBJECTS_URL + '/_find?page=2',
                                body=saved_objs_empty,
                                status=200)
 
         httpretty.register_uri(httpretty.GET,
-                               SAVED_OBJECTS_URL + '?page=1',
+                               SAVED_OBJECTS_URL + '/_find?page=1',
                                body=saved_objs_error,
                                status=200)
 
         client = SavedObjects(KIBANA_URL)
         with self.assertLogs(logger, level='ERROR') as cm:
-            _ = [obj for page_objs in client.fetch_objs(SAVED_OBJECTS_URL) for obj in page_objs]
+            _ = [obj for page_objs in client.find(SAVED_OBJECTS_URL, obj_type='dashboard') for obj in page_objs]
             self.assertEqual(cm.output[0],
                              'ERROR:archimedes.clients.saved_objects:Impossible to retrieve objects at page 1, '
                              'url http://example.com/api/saved_objects, An internal server error occurred')
@@ -151,13 +151,13 @@ class TestSavedObjects(unittest.TestCase):
         saved_objs_page = read_file('data/objects_1')
 
         httpretty.register_uri(httpretty.GET,
-                               SAVED_OBJECTS_URL,
+                               SAVED_OBJECTS_URL + '/_find',
                                body=saved_objs_page,
                                status=404)
 
         client = SavedObjects(KIBANA_URL)
         with self.assertRaises(requests.exceptions.HTTPError):
-            _ = [obj for page_objs in client.fetch_objs(SAVED_OBJECTS_URL) for obj in page_objs]
+            _ = [obj for page_objs in client.find(SAVED_OBJECTS_URL, obj_type='dashboard') for obj in page_objs]
 
     @httpretty.activate
     def test_fetch_objs_http_error_500(self):
@@ -168,26 +168,26 @@ class TestSavedObjects(unittest.TestCase):
         saved_objs_page_3 = read_file('data/objects_empty')
 
         httpretty.register_uri(httpretty.GET,
-                               SAVED_OBJECTS_URL + '?page=3',
+                               SAVED_OBJECTS_URL + '/_find?page=3',
                                body=saved_objs_page_3,
                                status=200)
 
         httpretty.register_uri(httpretty.GET,
-                               SAVED_OBJECTS_URL + '?page=2',
+                               SAVED_OBJECTS_URL + '/_find?page=2',
                                body=saved_objs_page_2,
                                status=500)
 
         httpretty.register_uri(httpretty.GET,
-                               SAVED_OBJECTS_URL + '?page=1',
+                               SAVED_OBJECTS_URL + '/_find?page=1',
                                body=saved_objs_page_1,
                                status=200)
 
         client = SavedObjects(KIBANA_URL)
         with self.assertLogs(logger) as cm:
-            _ = [obj for page_objs in client.fetch_objs(SAVED_OBJECTS_URL) for obj in page_objs]
+            _ = [obj for page_objs in client.find(SAVED_OBJECTS_URL, obj_type='dashboard') for obj in page_objs]
 
         self.assertEqual(cm.output[0],
-                         'WARNING:archimedes.clients.saved_objects:Impossible to retrieve objects at page 2, '
+                         'WARNING:archimedes.clients.saved_objects:Impossible to retrieve object at page 2, '
                          'url http://example.com/api/saved_objects')
 
     @httpretty.activate

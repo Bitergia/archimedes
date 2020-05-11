@@ -79,6 +79,14 @@ class MockedKibana(Kibana):
         self.dashboard = MockedDashboard(base_url, content)
         self.saved_objects = MockedSavedObjects(base_url, content)
 
+    def find_all(self):
+        objs = []
+        for obj in super().find_all():
+            found = [f['id'] for f in objs]
+            if obj['id'] not in found:
+                objs.append(obj)
+        return objs
+
 
 class MockedDashboard(Dashboard):
     def __init__(self, base_url, content):
@@ -97,7 +105,7 @@ class MockedSavedObjects(SavedObjects):
     def get_object(self, obj_type, obj_id):
         return self.content
 
-    def fetch_objs(self, url):
+    def find(self, url, obj_type):
         return self.content
 
 

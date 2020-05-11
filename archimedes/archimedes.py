@@ -325,9 +325,6 @@ class Archimedes:
         """Return the meta information of the Kibana objects stored in Kibana."""
 
         for obj in self.kibana.find_all():
-            if obj['type'] not in [VISUALIZATION, INDEX_PATTERN, SEARCH, DASHBOARD]:
-                continue
-
             meta_obj = KibanaObjMeta.create_from_obj(obj)
             yield meta_obj
 
