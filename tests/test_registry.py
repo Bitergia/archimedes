@@ -98,6 +98,19 @@ class TestRegistry(unittest.TestCase):
         self.assertEqual(registry.path, registry_path)
         self.assertTrue(os.path.exists(registry_path))
 
+    def test_initialization_nested_dir(self):
+        """Test whether a nested directory is created when initializing the registry"""
+
+        nested_path = os.path.join(self.tmp_path, 'nested')
+        registry_path = os.path.join(self.tmp_path, 'nested', REGISTRY_NAME)
+        self.assertFalse(os.path.exists(nested_path))
+        self.assertFalse(os.path.exists(registry_path))
+
+        registry = Registry(nested_path)
+
+        self.assertEqual(registry.path, registry_path)
+        self.assertTrue(os.path.exists(registry_path))
+
     def test_find_all(self):
         """Test whether the find method returns all entries when no obj type is given"""
 
