@@ -3,6 +3,7 @@ project: Bitergia
 tabs:
   - tab: Overview
     dashboard-title: Overview
+    description: "Summary of basic metrics on all analyzed sources."
   - tab: Git
     sections:
       - name: Overview

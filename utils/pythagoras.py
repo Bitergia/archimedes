@@ -105,8 +105,10 @@ def import_dashboard(archimedes, dash_id, dash_title, overwrite):
     :param overwrite: If True, force the overwrite of an existing dashboard
     """
     if dash_id:
+        logger.info("Importing dashboard %s" % dash_id)
         archimedes.import_from_disk(obj_type=DASHBOARD, obj_id=dash_id, find=True, force=overwrite)
     elif dash_title:
+        logger.info("Importing dashboard %s" % dash_title)
         archimedes.import_from_disk(obj_type=DASHBOARD, obj_title=dash_title, find=True, force=overwrite)
 
 
@@ -128,20 +130,22 @@ def find_dashboard(archimedes, dash_id, dash_title):
     return obj
 
 
-def create_metadashboard_entry(obj, menu_attr):
+def create_metadashboard_entry(panel_id, entry_title, menu_attr, descr):
     """Create an entry for the Kibiter metadashboard
 
-    :param obj: Kibana dashboard obj
+    :param panel_id: panel id (it can be a URL or a dashboard ID
+    :param entry_title: entry title
     :param menu_attr: attribute defined in the YAML file to be set as the name of the entry
+    :param descr: description for the entry
 
     :return: a dict representing the entry in the metadashboard
     """
     entry = {
-        'title': obj['attributes'].get('title', ''),
+        'title': entry_title,
         'name': menu_attr,
-        'description': '',
+        'description': descr,
         'type': 'entry',
-        'panel_id': obj['id']
+        'panel_id': panel_id
     }
 
     return entry
@@ -171,11 +175,14 @@ def upload(kibana_url, kibiter_index, elasticsearch_url, archimedes_path, menu_y
     for tab in menu['tabs']:
         dashboard_title = tab.get('dashboard-title', None)
         dashboard_id = tab.get('dashboard-id', None)
+        descr = tab.get('description', '')
         if dashboard_title or dashboard_id:
             if import_dashboards:
                 import_dashboard(archimedes, dashboard_id, dashboard_title, overwrite)
             obj = find_dashboard(archimedes, dashboard_id, dashboard_title)
-            entry = create_metadashboard_entry(obj, tab['tab'])
+            entry_title = obj['attributes'].get('title', '')
+            panel_id = obj['id']
+            entry = create_metadashboard_entry(panel_id, entry_title, tab['tab'], descr)
             top_menu.append(entry)
         else:
             sections = tab.get('sections', [])
@@ -187,13 +194,22 @@ def upload(kibana_url, kibiter_index, elasticsearch_url, archimedes_path, menu_y
             }
             dashboards = []
             for sect in sections:
-                dashboard = sect.get('dashboard', None)
-                if dashboard:
-                    if import_dashboards:
-                        archimedes.import_from_disk(obj_type=DASHBOARD, obj_title=dashboard, find=True, force=overwrite)
-                    obj = archimedes.kibana.find_by_title(obj_type=DASHBOARD, obj_title=dashboard)
-                    entry = create_metadashboard_entry(obj, sect['name'])
+                dashboard_title = sect.get('dashboard-title', None)
+                dashboard_id = sect.get('dashboard-id', None)
+                descr = sect.get('description', '')
+
+                if sect['name'] == 'Contact' and 'https' in dashboard_id:
+                    entry = create_metadashboard_entry(dashboard_id, '', sect['name'], descr)
                     dashboards.append(entry)
+                else:
+                    if dashboard_title or dashboard_id:
+                        if import_dashboards:
+                            import_dashboard(archimedes, dashboard_id, dashboard_title, overwrite)
+                        obj = find_dashboard(archimedes, dashboard_id, dashboard_title)
+                        entry_title = obj['attributes'].get('title', '')
+                        dashboard_id = obj['id']
+                        entry = create_metadashboard_entry(dashboard_id, entry_title, sect['name'], descr)
+                        dashboards.append(entry)
             sub_menu['dashboards'] = dashboards
             top_menu.append(sub_menu)
 
@@ -224,8 +240,9 @@ def main():
     tabs:
     - tab: Overview
         dashboard-title: Overview
+        description: "Summary of basic metrics on all analyzed sources."
     - tab: Git
-        sections:
+      sections:
         - name: Overview
           dashboard-id: Git
         - name: Attraction/Retention
@@ -234,6 +251,15 @@ def main():
           dashboard-title: Git Areas of Code
         - name: Lifecycle
           dashboard-title: Lifecycle
+    - tab: About
+      sections:
+      - name: About the dashboard
+        dashboard-id: About
+        description: Panel with information about the usage of the interface, an information
+          about the panel itself and acknowledgments
+      - name: Contact
+        dashboard-id: https://gitlab.com/Bitergia/c/CHAOSS/support
+        description: Direct link to the support repository
     ```
     """
     args = get_params()
