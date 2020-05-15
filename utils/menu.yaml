@@ -2,42 +2,42 @@
 project: Bitergia
 tabs:
   - tab: Overview
-    dashboard: Overview
+    dashboard-title: Overview
   - tab: Git
     sections:
       - name: Overview
-        dashboard: Git
+        dashboard-id: Git
       - name: Attraction/Retention
-        dashboard: Git Demographics
+        dashboard-title: Git Demographics
       - name: Areas of Code
-        dashboard: Git Areas of Code
+        dashboard-title: Git Areas of Code
       - name: Lifecycle
-        dashboard: Lifecycle
+        dashboard-title: Lifecycle
   - tab: GitHub Issues
     sections:
       - name: Overview
-        dashboard: GitHub Issues
+        dashboard-title: GitHub Issues
       - name: Backlog
-        dashboard: GitHub Issues Backlog
+        dashboard-title: GitHub Issues Backlog
       - name: Timing
-        dashboard: GitHub Issues Timing
+        dashboard-title: GitHub Issues Timing
       - name: Efficiency
-        dashboard: GitHub Issues Efficiency
+        dashboard-title: GitHub Issues Efficiency
   - tab: GitHub PRs
     sections:
       - name: Overview
-        dashboard: GitHub Pull Requests
+        dashboard-title: GitHub Pull Requests
       - name: Backlog
-        dashboard: GitHub Pull Requests Backlog
+        dashboard-title: GitHub Pull Requests Backlog
       - name: Timing
-        dashboard: GitHub Pull Requests Timing
+        dashboard-title: GitHub Pull Requests Timing
       - name: Efficiency
-        dashboard: GitHub Pull Requests Efficiency
+        dashboard-title: GitHub Pull Requests Efficiency
   - tab: DockerHub
     sections:
       - name: Overview
-        dashboard: DockerHub
+        dashboard-title: DockerHub
   - tab: Data Status
-    dashboard: Data Status
+    dashboard-title: Data Status
   - tab: About
-    dashboard: About
+    dashboard-title: About

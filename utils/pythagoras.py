@@ -65,6 +65,10 @@ def get_params():
 
 
 def load_yaml(file_path):
+    """Load the YAML file containing the top menu and returns its content
+
+    :param file_path: path of the YAML file
+    """
     with open(file_path, 'r') as f:
         try:
             menu = yaml.load(f, Loader=yaml.SafeLoader)
@@ -76,6 +80,13 @@ def load_yaml(file_path):
 
 
 def set_kibiter_endpoint(elasticsearch_url, kibiter_index, endpoint, data):
+    """Set the Kibiter endpoint related to the top menu
+
+    :param elasticsearch_url: URL of elasticsearch DB
+    :param kibiter_index: name of the target index
+    :param endpoint: the top-menu Kibiter-related endpoint (`metadashbord` or `projectname`)
+    :param data: the content to be uploaded
+    """
     endpoint_url = urijoin(elasticsearch_url, kibiter_index, 'doc', endpoint)
     response = requests.put(endpoint_url, data=json.dumps(data), headers=CONTENT_TYPE_HEADER, verify=False)
     try:
@@ -85,26 +96,86 @@ def set_kibiter_endpoint(elasticsearch_url, kibiter_index, endpoint, data):
     logger.info("%s successfully set" % endpoint)
 
 
+def import_dashboard(archimedes, dash_id, dash_title, overwrite):
+    """Import a dashboard by its ID or title
+
+    :param archimedes: Archimedes object
+    :param dash_id: Dashboard ID
+    :param dash_title: Dashboard title
+    :param overwrite: If True, force the overwrite of an existing dashboard
+    """
+    if dash_id:
+        archimedes.import_from_disk(obj_type=DASHBOARD, obj_id=dash_id, find=True, force=overwrite)
+    elif dash_title:
+        archimedes.import_from_disk(obj_type=DASHBOARD, obj_title=dash_title, find=True, force=overwrite)
+
+
+def find_dashboard(archimedes, dash_id, dash_title):
+    """Find a dashboard by its ID or title and return the Kibana object
+
+    :param archimedes: Archimedes object
+    :param dash_id: Dashboard ID
+    :param dash_title: Dashboard title
+
+    :return the Kibana dashboard obj
+    """
+    obj = None
+    if dash_id:
+        obj = archimedes.kibana.find_by_id(obj_type=DASHBOARD, obj_id=dash_id)
+    elif dash_title:
+        obj = archimedes.kibana.find_by_title(obj_type=DASHBOARD, obj_title=dash_title)
+
+    return obj
+
+
+def create_metadashboard_entry(obj, menu_attr):
+    """Create an entry for the Kibiter metadashboard
+
+    :param obj: Kibana dashboard obj
+    :param menu_attr: attribute defined in the YAML file to be set as the name of the entry
+
+    :return: a dict representing the entry in the metadashboard
+    """
+    entry = {
+        'title': obj['attributes'].get('title', ''),
+        'name': menu_attr,
+        'description': '',
+        'type': 'entry',
+        'panel_id': obj['id']
+    }
+
+    return entry
+
+
 def upload(kibana_url, kibiter_index, elasticsearch_url, archimedes_path, menu_yaml,
            import_dashboards=False, overwrite=False, set_top_menu=False,
            project_name=None, set_project_name=False):
+    """Upload the dashboards to a target Kibana instance and set the top menu and
+    project name in the corresponding ElasticSearch DB.
+
+    :param kibana_url: Kibana URL
+    :param kibiter_index: target Kibiter index
+    :param elasticsearch_url: ElasticSearch URL
+    :param archimedes_path: Root path of the Archimedes folder
+    :param menu_yaml: YAML containing the structure of the top menu
+    :param import_dashboards: If True, import the dashboards defined in `menu_yaml`
+    :param overwrite: If True, force the overwrite of existing dashboards
+    :param set_top_menu: If True, set the top menu (metadashboard) defined in the `menu_yaml` to the `kibiter_index`
+    :param project_name: Project name
+    :param set_project_name: If True, set the project name in the `kibiter_index`
+    """
     menu = load_yaml(menu_yaml)
     archimedes = Archimedes(kibana_url, archimedes_path)
 
     top_menu = []
     for tab in menu['tabs']:
-        dashboard = tab.get('dashboard', None)
-        if dashboard:
+        dashboard_title = tab.get('dashboard-title', None)
+        dashboard_id = tab.get('dashboard-id', None)
+        if dashboard_title or dashboard_id:
             if import_dashboards:
-                archimedes.import_from_disk(obj_type=DASHBOARD, obj_title=dashboard, find=True, force=overwrite)
-            obj = archimedes.kibana.find_by_title(obj_type=DASHBOARD, obj_title=dashboard)
-            entry = {
-                'title': tab['tab'],
-                'name': tab['tab'],
-                'description': '',
-                'type': 'entry',
-                'panel_id': obj['id']
-            }
+                import_dashboard(archimedes, dashboard_id, dashboard_title, overwrite)
+            obj = find_dashboard(archimedes, dashboard_id, dashboard_title)
+            entry = create_metadashboard_entry(obj, tab['tab'])
             top_menu.append(entry)
         else:
             sections = tab.get('sections', [])
@@ -121,13 +192,7 @@ def upload(kibana_url, kibiter_index, elasticsearch_url, archimedes_path, menu_y
                     if import_dashboards:
                         archimedes.import_from_disk(obj_type=DASHBOARD, obj_title=dashboard, find=True, force=overwrite)
                     obj = archimedes.kibana.find_by_title(obj_type=DASHBOARD, obj_title=dashboard)
-                    entry = {
-                        'title': sect['name'],
-                        'name': sect['name'],
-                        'description': '',
-                        'type': 'entry',
-                        'panel_id': obj['id']
-                    }
+                    entry = create_metadashboard_entry(obj, sect['name'])
                     dashboards.append(entry)
             sub_menu['dashboards'] = dashboards
             top_menu.append(sub_menu)
@@ -143,7 +208,7 @@ def main():
     """Pythagoras helps Archimedes to import dashboards (overwriting the existing ones if needed) based on
     the top menu passed as input. Furthermore, it also helps to set the top menu and project name in Kibiter.
 
-    Examples:
+    Example:
     pythagoras http://admin:admin@localhost:7890 /tmp/archimedes_folder ./menu.yaml
     --elasticsearch-url https://admin:admin@localhost:6789
     --project-name Test
@@ -152,6 +217,24 @@ def main():
     --import-dashboards
     --kibiter-index .kibana_1
     --overwrite
+
+    menu.yaml
+    ```
+    project: Bitergia
+    tabs:
+    - tab: Overview
+        dashboard-title: Overview
+    - tab: Git
+        sections:
+        - name: Overview
+          dashboard-id: Git
+        - name: Attraction/Retention
+          dashboard-title: Git Demographics
+        - name: Areas of Code
+          dashboard-title: Git Areas of Code
+        - name: Lifecycle
+          dashboard-title: Lifecycle
+    ```
     """
     args = get_params()
     upload(args.kibana_url, args.kibiter_index, args.elasticsearch_url, args.archimedes_root_path,
