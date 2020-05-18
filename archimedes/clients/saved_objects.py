@@ -43,10 +43,9 @@ class SavedObjects(HttpClient):
     def __init__(self, base_url):
         super().__init__(base_url)
 
-    def find(self, url, obj_type):
+    def find(self, obj_type):
         """Find an object by its type.
 
-        :param url: saved_objects endpoint
         :param obj_type: obj_type
 
         :returns an iterator of the saved objects
@@ -61,13 +60,13 @@ class SavedObjects(HttpClient):
             'type': obj_type
         }
 
-        find_url = urijoin(url, self.API_FIND_ENDPOINT)
+        find_url = urijoin(self.base_url, self.API_SAVED_OBJECTS_URL, self.API_FIND_ENDPOINT)
         while True:
             try:
                 r_json = self.fetch(find_url, params=params)
             except requests.exceptions.HTTPError as error:
                 if error.response.status_code == 500:
-                    logger.warning("Impossible to retrieve object at page %s, url %s", params['page'], url)
+                    logger.warning("Impossible to retrieve object at page %s, url %s", params['page'], find_url)
                     params['page'] = params['page'] + 1
                     continue
                 else:
@@ -75,7 +74,7 @@ class SavedObjects(HttpClient):
 
             if 'statusCode' in r_json:
                 logger.error("Impossible to retrieve objects at page %s, url %s, %s",
-                             params['page'], url, r_json['message'])
+                             params['page'], find_url, r_json['message'])
                 params['page'] = params['page'] + 1
                 continue
 
