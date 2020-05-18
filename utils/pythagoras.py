@@ -26,6 +26,7 @@ import yaml
 
 from archimedes.archimedes import Archimedes, logger
 from archimedes.clients.dashboard import DASHBOARD
+from archimedes.clients.saved_objects import SavedObjects
 from grimoirelab_toolkit.uris import urijoin
 
 
@@ -35,31 +36,28 @@ CONTENT_TYPE_HEADER = {"Content-Type": "application/json"}
 
 
 def get_params():
-    parser = argparse.ArgumentParser(add_help=False)
+    parser = argparse.ArgumentParser(usage="usage: Pythagoras [options]",
+                                     description="Import dashboards and set metadashboard, projectname and config")
 
-    parser.add_argument('kibana_url', help='Kibana URL')
+    parser.add_argument('kibiter_url', help='Kibana URL')
     parser.add_argument('archimedes_root_path', help='Archimedes folder')
     parser.add_argument('top_menu_path', help='Top menu yaml file')
     parser.add_argument('--kibiter-index', dest='kibiter_index', help='Kibiter index', default='.kibiter')
-    parser.add_argument('--project-name', dest='project_name', help='Project name', default=None)
+    parser.add_argument('--kibiter-time-from', dest='kibiter_time_from', help='Kibiter time from', default='now-90d')
+    parser.add_argument('--kibiter-index-pattern', dest='kibiter_index_pattern', help='Kibiter index pattern', default='git')
+    parser.add_argument('--kibiter-version', dest='kibiter_version', help='Kibiter version', default='6.8.6')
     parser.add_argument('--elasticsearch-url', dest='elasticsearch_url', help='ElasticSearch URL', default=None)
     parser.add_argument('--import-dashboards', dest='import_dashboards', action='store_true', help='Import dashboards')
     parser.add_argument('--set-top-menu', dest='set_top_menu', action='store_true', help='Set top menu')
     parser.add_argument('--set-project-name', dest='set_project_name', action='store_true', help='Set project name')
+    parser.add_argument('--set-config', dest='set_config', action='store_true', help='Set the Kibiter conf')
     parser.add_argument('--overwrite', dest='overwrite', action='store_true', help='Overwrite existing Kibana obj')
 
     args = parser.parse_args()
 
-    if args.set_project_name and not args.project_name:
-        logger.error("Project name not declared")
-        return
-
     if args.set_top_menu and not args.elasticsearch_url:
         logger.error("ElasticSearch URL not declared")
         return
-
-    if not args.import_dashboards and not args.set_top_menu and not args.set_project_name:
-        logger.error("Set at least one of --import-dashboards, --set-project-name, --set-top-menu")
 
     return args
 
@@ -76,24 +74,44 @@ def load_yaml(file_path):
             logger.error(ex)
             return
 
+    logger.info("%s loaded" % file_path)
     return menu
 
 
+def set_kibiter_config(kibiter_url, kibiter_time_from='now-90d', kibiter_index_pattern='git', kibiter_version='6.8.6',
+                       overwrite=True):
+    """Set the configuration of the Kibiter instance via the Kibana API
+
+    :param kibiter_url: Kibiter URL
+    :param kibiter_time_from: The value of the time picker
+    :param kibiter_index_pattern: The value of the default index pattern
+    :param kibiter_version: The value of the Kibiter version
+    :param overwrite: If True, force the overwrite of existing dashboards
+    """
+    attributes = {}
+    time_picker = {"from": kibiter_time_from, "to": "now", "mode": "quick"}
+    attributes["timepicker:timeDefaults"] = json.dumps(time_picker)
+    attributes["defaultIndex"] = kibiter_index_pattern
+
+    saved_objects = SavedObjects(kibiter_url)
+    saved_objects.create_object('config', kibiter_version, attributes, overwrite=overwrite)
+
+
 def set_kibiter_endpoint(elasticsearch_url, kibiter_index, endpoint, data):
-    """Set the Kibiter endpoint related to the top menu
+    """Set a target Kibiter endpoint
 
     :param elasticsearch_url: URL of elasticsearch DB
     :param kibiter_index: name of the target index
-    :param endpoint: the top-menu Kibiter-related endpoint (`metadashbord` or `projectname`)
+    :param endpoint: the Kibiter-related endpoint (`metadashbord` or `projectname`)
     :param data: the content to be uploaded
     """
     endpoint_url = urijoin(elasticsearch_url, kibiter_index, 'doc', endpoint)
     response = requests.put(endpoint_url, data=json.dumps(data), headers=CONTENT_TYPE_HEADER, verify=False)
     try:
         response.raise_for_status()
+        logger.info("%s successfully set" % endpoint)
     except Exception as ex:
         logger.error("%s not set: %s" % (endpoint, ex))
-    logger.info("%s successfully set" % endpoint)
 
 
 def import_dashboard(archimedes, dash_id, dash_title, overwrite):
@@ -151,26 +169,21 @@ def create_metadashboard_entry(panel_id, entry_title, menu_attr, descr):
     return entry
 
 
-def upload(kibana_url, kibiter_index, elasticsearch_url, archimedes_path, menu_yaml,
-           import_dashboards=False, overwrite=False, set_top_menu=False,
-           project_name=None, set_project_name=False):
-    """Upload the dashboards to a target Kibana instance and set the top menu and
-    project name in the corresponding ElasticSearch DB.
+def upload_dashboards(kibiter_url, archimedes_path, menu_yaml, import_dashboards=False, overwrite=False):
+    """Upload the dashboards to a target Kibana instance.
 
-    :param kibana_url: Kibana URL
-    :param kibiter_index: target Kibiter index
-    :param elasticsearch_url: ElasticSearch URL
+    :param kibiter_url: Kibiter URL
     :param archimedes_path: Root path of the Archimedes folder
     :param menu_yaml: YAML containing the structure of the top menu
     :param import_dashboards: If True, import the dashboards defined in `menu_yaml`
     :param overwrite: If True, force the overwrite of existing dashboards
-    :param set_top_menu: If True, set the top menu (metadashboard) defined in the `menu_yaml` to the `kibiter_index`
-    :param project_name: Project name
-    :param set_project_name: If True, set the project name in the `kibiter_index`
+
+    :returns a dict including the project name and the metadashboard info (the list of dashboards in the menu_yaml)
     """
     menu = load_yaml(menu_yaml)
-    archimedes = Archimedes(kibana_url, archimedes_path)
+    archimedes = Archimedes(kibiter_url, archimedes_path)
 
+    project_name = menu['project']
     top_menu = []
     for tab in menu['tabs']:
         dashboard_title = tab.get('dashboard-title', None)
@@ -213,26 +226,27 @@ def upload(kibana_url, kibiter_index, elasticsearch_url, archimedes_path, menu_y
             sub_menu['dashboards'] = dashboards
             top_menu.append(sub_menu)
 
-    if set_top_menu:
-        set_kibiter_endpoint(elasticsearch_url, kibiter_index, METADASHBOARD, {"metadashboard": top_menu})
-
-    if set_project_name:
-        set_kibiter_endpoint(elasticsearch_url, kibiter_index, PROJECTNAME, {"projectname": {"name": project_name}})
+    return {
+        'projectname': project_name,
+        'metadashboard': top_menu
+    }
 
 
 def main():
-    """Pythagoras helps Archimedes to import dashboards (overwriting the existing ones if needed) based on
-    the top menu passed as input. Furthermore, it also helps to set the top menu and project name in Kibiter.
+    """Pythagoras helps Archimedes to import dashboards (overwriting the existing ones if
+    needed) based on the top menu passed as input. Furthermore, it also helps to set the
+    top menu, project name and config settings in Kibiter.
 
     Example:
     pythagoras http://admin:admin@localhost:7890 /tmp/archimedes_folder ./menu.yaml
     --elasticsearch-url https://admin:admin@localhost:6789
-    --project-name Test
     --set-project-name
     --set-top-menu
+    --set-config
     --import-dashboards
     --kibiter-index .kibana_1
     --overwrite
+    --kibiter-index-pattern mbox
 
     menu.yaml
     ```
@@ -263,9 +277,21 @@ def main():
     ```
     """
     args = get_params()
-    upload(args.kibana_url, args.kibiter_index, args.elasticsearch_url, args.archimedes_root_path,
-           args.top_menu_path, args.import_dashboards, args.overwrite, args.set_top_menu,
-           args.project_name, args.set_project_name)
+    menu_json = upload_dashboards(args.kibiter_url, args.archimedes_root_path, args.top_menu_path,
+                                  args.import_dashboards, args.overwrite)
+
+    if args.set_top_menu:
+        metadashboard = menu_json['metadashboard']
+        set_kibiter_endpoint(args.elasticsearch_url, args.kibiter_index,
+                             METADASHBOARD, {"metadashboard": metadashboard})
+
+    if args.set_project_name:
+        projectname = menu_json['projectname']
+        set_kibiter_endpoint(args.elasticsearch_url, args.kibiter_index, PROJECTNAME, {"projectname": projectname})
+
+    if args.set_config:
+        set_kibiter_config(args.kibiter_url, args.kibiter_time_from, args.kibiter_index_pattern, args.kibiter_version,
+                           args.overwrite)
 
 
 if __name__ == "__main__":
