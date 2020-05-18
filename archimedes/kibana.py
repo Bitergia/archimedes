@@ -136,9 +136,9 @@ class Kibana:
         url = urijoin(self.base_url, self.saved_objects.API_SAVED_OBJECTS_URL)
         found_obj = None
 
-        for page_objs in self.saved_objects.fetch_objs(url):
+        for page_objs in self.saved_objects.find(url, obj_type):
             for obj in page_objs:
-                if obj['type'] == obj_type and obj['attributes']['title'] == obj_title:
+                if obj['attributes']['title'] == obj_title:
                     found_obj = obj
                     break
 
@@ -164,9 +164,9 @@ class Kibana:
         url = urijoin(self.base_url, self.saved_objects.API_SAVED_OBJECTS_URL)
         found_obj = None
 
-        for page_objs in self.saved_objects.fetch_objs(url):
+        for page_objs in self.saved_objects.find(url, obj_type):
             for obj in page_objs:
-                if obj['type'] == obj_type and obj['id'] == obj_id:
+                if obj['id'] == obj_id:
                     found_obj = obj
                     break
 
@@ -186,6 +186,8 @@ class Kibana:
         """
         url = urijoin(self.base_url, self.saved_objects.API_SAVED_OBJECTS_URL)
 
-        for page_objs in self.saved_objects.fetch_objs(url):
-            for obj in page_objs:
-                yield obj
+        obj_types = [DASHBOARD, INDEX_PATTERN, SEARCH, VISUALIZATION]
+        for obj_type in obj_types:
+            for page_objs in self.saved_objects.find(url, obj_type):
+                for obj in page_objs:
+                    yield obj

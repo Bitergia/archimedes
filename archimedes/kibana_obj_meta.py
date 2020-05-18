@@ -19,7 +19,11 @@
 #   Valerio Cosentino <valcos@bitergia.com>
 #
 
+import logging
 import json
+
+
+logger = logging.getLogger(__name__)
 
 
 class KibanaObjMeta:
@@ -64,8 +68,12 @@ class KibanaObjMeta:
         :param obj: Kibana object
         """
         updated_at = obj['updated_at'] if 'updated_at' in obj else None
+        title = obj['attributes'].get('title', None)
+        if not title:
+            msg = "Obj {} with id {} doesn't have a title".format(obj['type'], obj['id'])
+            logger.warning(msg)
 
-        return KibanaObjMeta(obj['id'], obj['attributes']['title'], obj['type'], obj['version'], updated_at)
+        return KibanaObjMeta(obj['id'], title, obj['type'], obj['version'], updated_at)
 
     @classmethod
     def create_from_registry(cls, entry):

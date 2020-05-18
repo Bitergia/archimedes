@@ -23,7 +23,7 @@ import json
 
 import unittest
 
-from archimedes.kibana_obj_meta import KibanaObjMeta
+from archimedes.kibana_obj_meta import KibanaObjMeta, logger
 
 
 DASHBOARD_REG_ENTRY = {
@@ -80,6 +80,25 @@ DASHBOARD_OBJ_NO_UPDATED_AT = {
     "version": 9
 }
 
+DASHBOARD_OBJ_NO_TITLE = {
+    "attributes": {
+        "description": "GitLab Issues panel by Bitergia",
+        "hits": 0,
+        "kibanaSavedObjectMeta": {
+            "searchSourceJSON": "..."
+        },
+        "optionsJSON": "{\"darkTheme\":false,\"hidePanelTitles\":false,\"useMargins\":true}",
+        "panelsJSON": "...",
+        "timeRestore": "false",
+        "uiStateJSON": "...",
+        "version": 1
+    },
+    "id": "2e968fe0-b1bb-11e8-8aac-ef7fd4d8cbad",
+    "type": "dashboard",
+    "updated_at": "2019-01-24T13:20:08.902Z",
+    "version": 9
+}
+
 
 class TestMetaObj(unittest.TestCase):
     """MetaObj tests"""
@@ -130,6 +149,17 @@ class TestMetaObj(unittest.TestCase):
         self.assertEqual(meta.version, 9)
         self.assertIsNone(meta.updated_at)
 
+        with self.assertLogs(logger, level='WARNING') as cm:
+            meta = KibanaObjMeta.create_from_obj(DASHBOARD_OBJ_NO_TITLE)
+            self.assertEqual(meta.id, "2e968fe0-b1bb-11e8-8aac-ef7fd4d8cbad")
+            self.assertIsNone(meta.title)
+            self.assertEqual(meta.type, "dashboard")
+            self.assertEqual(meta.version, 9)
+            self.assertEqual(meta.updated_at, "2019-01-24T13:20:08.902Z")
+
+            self.assertEqual(cm.output[0], "WARNING:archimedes.kibana_obj_meta:Obj dashboard with id "
+                                           "2e968fe0-b1bb-11e8-8aac-ef7fd4d8cbad doesn't have a title")
+
     def test_create_from_registry(self):
         """Test whether a meta object is correctly created from a registry entry"""
 
@@ -151,6 +181,22 @@ class TestMetaObj(unittest.TestCase):
         """Test whether the repr method properly works"""
 
         obj = KibanaObjMeta.create_from_obj(DASHBOARD_OBJ)
+        str_repr = repr(obj)
+
+        expected = {
+            'id': obj.id,
+            'type': obj.type,
+            'version': obj.version,
+            'title': obj.title,
+            'updated_at': obj.updated_at
+        }
+
+        self.assertEqual(str_repr, json.dumps(expected, sort_keys=True, indent=4))
+
+    def test_repr_no_title(self):
+        """Test whether the repr method properly works for object without a title"""
+
+        obj = KibanaObjMeta.create_from_obj(DASHBOARD_OBJ_NO_TITLE)
         str_repr = repr(obj)
 
         expected = {

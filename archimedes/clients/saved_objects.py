@@ -43,24 +43,31 @@ class SavedObjects(HttpClient):
     def __init__(self, base_url):
         super().__init__(base_url)
 
-    def fetch_objs(self, url):
-        """Find an object by its type and title.
+    def find(self, url, obj_type):
+        """Find an object by its type.
 
         :param url: saved_objects endpoint
+        :param obj_type: obj_type
 
         :returns an iterator of the saved objects
         """
         fetched_objs = 0
+        # The objects are retrieved one by one, since when an object cannot be retrieved, also all
+        # the remaining objects are not. This happens for the metadashboard and projectname objects,
+        # which cannot be retrieved because not recognized by the Kibana API.
         params = {
-            'page': 1
+            'page': 1,
+            'per_page': 1,
+            'type': obj_type
         }
 
+        find_url = urijoin(url, '_find')
         while True:
             try:
-                r_json = self.fetch(url, params=params)
+                r_json = self.fetch(find_url, params=params)
             except requests.exceptions.HTTPError as error:
                 if error.response.status_code == 500:
-                    logger.warning("Impossible to retrieve objects at page %s, url %s", params['page'], url)
+                    logger.warning("Impossible to retrieve object at page %s, url %s", params['page'], url)
                     params['page'] = params['page'] + 1
                     continue
                 else:
