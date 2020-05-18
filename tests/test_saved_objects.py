@@ -294,8 +294,9 @@ class TestSavedObjects(unittest.TestCase):
         """Test the method update_object"""
 
         obj_data = read_file('data/object_index-pattern')
-        obj_attr = "version"
-        obj_new_value = "2"
+        attributes = {
+            "version": "2"
+        }
 
         httpretty.register_uri(httpretty.PUT,
                                OBJECT_URL,
@@ -304,7 +305,7 @@ class TestSavedObjects(unittest.TestCase):
 
         client = SavedObjects(KIBANA_URL)
         with self.assertLogs(logger, level='INFO') as cm:
-            obj = client.update_object(OBJECT_TYPE, OBJECT_ID, obj_attr, obj_new_value)
+            obj = client.update_object(OBJECT_TYPE, OBJECT_ID, attributes)
             self.assertEqual(cm.output[0],
                              'INFO:archimedes.clients.saved_objects:'
                              'Object ' + OBJECT_TYPE + ' with id ' + OBJECT_ID + ' updated')
@@ -315,8 +316,9 @@ class TestSavedObjects(unittest.TestCase):
         """Test whether a warning is logged when the object is not found"""
 
         obj_data = read_file('data/object_index-pattern')
-        obj_attr = "version"
-        obj_new_value = "2"
+        attributes = {
+            "version": "2"
+        }
 
         httpretty.register_uri(httpretty.PUT,
                                OBJECT_URL,
@@ -325,7 +327,7 @@ class TestSavedObjects(unittest.TestCase):
 
         client = SavedObjects(KIBANA_URL)
         with self.assertLogs(logger, level='WARNING') as cm:
-            obj = client.update_object(OBJECT_TYPE, OBJECT_ID, obj_attr, obj_new_value)
+            obj = client.update_object(OBJECT_TYPE, OBJECT_ID, attributes)
             self.assertEqual(cm.output[0],
                              'WARNING:archimedes.clients.saved_objects:'
                              'No ' + OBJECT_TYPE + ' found with id: ' + OBJECT_ID)
@@ -336,8 +338,9 @@ class TestSavedObjects(unittest.TestCase):
         """Test whether a warning is logged when the object is not updated"""
 
         obj_data = read_file('data/object_index-pattern')
-        obj_attr = "version"
-        obj_new_value = "2"
+        attributes = {
+            "version": "2"
+        }
 
         httpretty.register_uri(httpretty.PUT,
                                OBJECT_URL,
@@ -346,10 +349,9 @@ class TestSavedObjects(unittest.TestCase):
 
         client = SavedObjects(KIBANA_URL)
         with self.assertLogs(logger, level='WARNING') as cm:
-            obj = client.update_object(OBJECT_TYPE, OBJECT_ID, obj_attr, obj_new_value)
+            obj = client.update_object(OBJECT_TYPE, OBJECT_ID, attributes)
             self.assertEqual(cm.output[0], 'WARNING:archimedes.clients.saved_objects:Impossible to update '
-                                           'attribute ' + obj_attr + ' with value ' + obj_new_value + ', '
-                                           'for ' + OBJECT_TYPE + ' with id ' + OBJECT_ID)
+                                           'the object ' + OBJECT_TYPE + ' with id ' + OBJECT_ID)
             self.assertIsNone(obj)
 
     @httpretty.activate
@@ -357,8 +359,9 @@ class TestSavedObjects(unittest.TestCase):
         """Test whether an exception is thrown when the HTTP error is not 404 or 400"""
 
         obj_data = read_file('data/object_index-pattern')
-        obj_attr = "version"
-        obj_new_value = "2"
+        attributes = {
+            "version": "2"
+        }
 
         httpretty.register_uri(httpretty.PUT,
                                OBJECT_URL,
@@ -367,7 +370,7 @@ class TestSavedObjects(unittest.TestCase):
 
         client = SavedObjects(KIBANA_URL)
         with self.assertRaises(requests.exceptions.HTTPError):
-            _ = client.update_object(OBJECT_TYPE, OBJECT_ID, obj_attr, obj_new_value)
+            _ = client.update_object(OBJECT_TYPE, OBJECT_ID, attributes)
 
     @httpretty.activate
     def test_create_object(self):

@@ -125,21 +125,18 @@ class SavedObjects(HttpClient):
             else:
                 raise error
 
-    def update_object(self, obj_type, obj_id, attr, value):
-        """Update an attribute of a target object of a given type and id.
+    def update_object(self, obj_type, obj_id, attributes):
+        """Update the atttributes of a target object of a given type and id.
 
         :param obj_type: type of the target object
         :param obj_id: ID of the target object
-        :param attr: attribute to update
-        :param value: new value of attribute
+        :param attributes: a dict containing the attributes to be updated
 
         :returns the updated object
         """
         url = urijoin(self.base_url, self.API_SAVED_OBJECTS_URL, obj_type, obj_id)
         params = {
-            "attributes": {
-                attr: value
-            }
+            "attributes": attributes
         }
         r = None
 
@@ -150,8 +147,7 @@ class SavedObjects(HttpClient):
             if error.response.status_code == 404:
                 logger.warning("No %s found with id: %s", obj_type, obj_id)
             elif error.response.status_code == 400:
-                logger.warning("Impossible to update attribute %s with value %s, for %s with id %s",
-                               attr, value, obj_type, obj_id)
+                logger.warning("Impossible to update the object %s with id %s", obj_type, obj_id)
             else:
                 raise error
 
