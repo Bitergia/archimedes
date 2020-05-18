@@ -369,6 +369,40 @@ class TestSavedObjects(unittest.TestCase):
         with self.assertRaises(requests.exceptions.HTTPError):
             _ = client.update_object(OBJECT_TYPE, OBJECT_ID, obj_attr, obj_new_value)
 
+    @httpretty.activate
+    def test_create_object(self):
+        """Test the method create_object"""
+
+        obj_data = read_file('data/object_index-pattern')
+        attributes = json.loads(obj_data)['attributes']
+        httpretty.register_uri(httpretty.POST,
+                               OBJECT_URL,
+                               body=obj_data,
+                               status=200)
+
+        client = SavedObjects(KIBANA_URL)
+        with self.assertLogs(logger, level='INFO') as cm:
+            obj = client.create_object(OBJECT_TYPE, OBJECT_ID, attributes)
+            self.assertEqual(cm.output[0],
+                             'INFO:archimedes.clients.saved_objects:'
+                             'Object ' + OBJECT_TYPE + ' with id ' + OBJECT_ID + ' create')
+            self.assertDictEqual(obj, json.loads(obj_data))
+
+    @httpretty.activate
+    def test_create_object_http_error(self):
+        """Test whether an exception is thrown if create_object fails"""
+
+        obj_data = read_file('data/object_index-pattern')
+        attributes = json.loads(obj_data)['attributes']
+        httpretty.register_uri(httpretty.POST,
+                               OBJECT_URL,
+                               body=obj_data,
+                               status=500)
+
+        client = SavedObjects(KIBANA_URL)
+        with self.assertRaises(requests.exceptions.HTTPError):
+            _ = client.create_object(OBJECT_TYPE, OBJECT_ID, attributes)
+
 
 if __name__ == "__main__":
     unittest.main(warnings='ignore')

@@ -38,7 +38,7 @@ class SavedObjects(HttpClient):
     :param base_url: the Kibana URL
     """
     API_SAVED_OBJECTS_URL = 'api/saved_objects'
-    API_SEARCH_COMMAND = '_search'
+    API_FIND_ENDPOINT = '_find'
 
     def __init__(self, base_url):
         super().__init__(base_url)
@@ -61,7 +61,7 @@ class SavedObjects(HttpClient):
             'type': obj_type
         }
 
-        find_url = urijoin(url, '_find')
+        find_url = urijoin(url, self.API_FIND_ENDPOINT)
         while True:
             try:
                 r_json = self.fetch(find_url, params=params)
@@ -154,5 +154,33 @@ class SavedObjects(HttpClient):
                                attr, value, obj_type, obj_id)
             else:
                 raise error
+
+        return r
+
+    def create_object(self, obj_type, obj_id, attributes, overwrite=False):
+        """Create an object of a given type and id with a set of attributes.
+
+        :param obj_type: type of the new obj
+        :param obj_id: ID of the new obj
+        :param attributes: a dict containing the attributes of the new obj
+        :param overwrite: if True, will overwrite the obj with the same ID
+
+        :returns the created obj
+        """
+        url = urijoin(self.base_url, self.API_SAVED_OBJECTS_URL, obj_type, obj_id)
+        data = {
+            "attributes": attributes
+        }
+
+        params = {
+            "overwrite": overwrite
+        }
+
+        try:
+            r = self.post(url, data=data, params=params)
+            logger.info("Object %s with id %s create", obj_type, obj_id)
+        except requests.exceptions.HTTPError as error:
+            logger.error("Object %s with id %s not created: %s", obj_type, obj_id, error)
+            raise error
 
         return r
