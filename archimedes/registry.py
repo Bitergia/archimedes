@@ -59,6 +59,8 @@ class Registry:
         :param root_path: path where the registry will be stored
         """
         self.path = os.path.join(root_path, REGISTRY_NAME)
+        if not os.path.exists(root_path):
+            os.makedirs(root_path)
 
         if not os.path.exists(self.path):
             self.__create_registry()
