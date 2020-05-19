@@ -105,7 +105,7 @@ class MockedSavedObjects(SavedObjects):
     def get_object(self, obj_type, obj_id):
         return self.content
 
-    def find(self, url, obj_type):
+    def find(self, obj_type):
         return self.content
 
 

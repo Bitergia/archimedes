@@ -38,15 +38,14 @@ class SavedObjects(HttpClient):
     :param base_url: the Kibana URL
     """
     API_SAVED_OBJECTS_URL = 'api/saved_objects'
-    API_SEARCH_COMMAND = '_search'
+    API_FIND_ENDPOINT = '_find'
 
     def __init__(self, base_url):
         super().__init__(base_url)
 
-    def find(self, url, obj_type):
+    def find(self, obj_type):
         """Find an object by its type.
 
-        :param url: saved_objects endpoint
         :param obj_type: obj_type
 
         :returns an iterator of the saved objects
@@ -61,13 +60,13 @@ class SavedObjects(HttpClient):
             'type': obj_type
         }
 
-        find_url = urijoin(url, '_find')
+        find_url = urijoin(self.base_url, self.API_SAVED_OBJECTS_URL, self.API_FIND_ENDPOINT)
         while True:
             try:
                 r_json = self.fetch(find_url, params=params)
             except requests.exceptions.HTTPError as error:
                 if error.response.status_code == 500:
-                    logger.warning("Impossible to retrieve object at page %s, url %s", params['page'], url)
+                    logger.warning("Impossible to retrieve object at page %s, url %s", params['page'], find_url)
                     params['page'] = params['page'] + 1
                     continue
                 else:
@@ -75,7 +74,7 @@ class SavedObjects(HttpClient):
 
             if 'statusCode' in r_json:
                 logger.error("Impossible to retrieve objects at page %s, url %s, %s",
-                             params['page'], url, r_json['message'])
+                             params['page'], find_url, r_json['message'])
                 params['page'] = params['page'] + 1
                 continue
 
@@ -125,21 +124,18 @@ class SavedObjects(HttpClient):
             else:
                 raise error
 
-    def update_object(self, obj_type, obj_id, attr, value):
-        """Update an attribute of a target object of a given type and id.
+    def update_object(self, obj_type, obj_id, attributes):
+        """Update the atttributes of a target object of a given type and id.
 
         :param obj_type: type of the target object
         :param obj_id: ID of the target object
-        :param attr: attribute to update
-        :param value: new value of attribute
+        :param attributes: a dict containing the attributes to be updated
 
         :returns the updated object
         """
         url = urijoin(self.base_url, self.API_SAVED_OBJECTS_URL, obj_type, obj_id)
         params = {
-            "attributes": {
-                attr: value
-            }
+            "attributes": attributes
         }
         r = None
 
@@ -150,9 +146,36 @@ class SavedObjects(HttpClient):
             if error.response.status_code == 404:
                 logger.warning("No %s found with id: %s", obj_type, obj_id)
             elif error.response.status_code == 400:
-                logger.warning("Impossible to update attribute %s with value %s, for %s with id %s",
-                               attr, value, obj_type, obj_id)
+                logger.warning("Impossible to update the object %s with id %s", obj_type, obj_id)
             else:
                 raise error
+
+        return r
+
+    def create_object(self, obj_type, obj_id, attributes, overwrite=False):
+        """Create an object of a given type and id with a set of attributes.
+
+        :param obj_type: type of the new obj
+        :param obj_id: ID of the new obj
+        :param attributes: a dict containing the attributes of the new obj
+        :param overwrite: if True, will overwrite the obj with the same ID
+
+        :returns the created obj
+        """
+        url = urijoin(self.base_url, self.API_SAVED_OBJECTS_URL, obj_type, obj_id)
+        data = {
+            "attributes": attributes
+        }
+
+        params = {
+            "overwrite": overwrite
+        }
+
+        try:
+            r = self.post(url, data=data, params=params)
+            logger.info("Object %s with id %s create", obj_type, obj_id)
+        except requests.exceptions.HTTPError as error:
+            logger.error("Object %s with id %s not created: %s", obj_type, obj_id, error)
+            raise error
 
         return r

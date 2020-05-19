@@ -82,7 +82,7 @@ class TestSavedObjects(unittest.TestCase):
                                status=200)
 
         client = SavedObjects(KIBANA_URL)
-        fetched_objs = [obj for page_objs in client.find(SAVED_OBJECTS_URL, obj_type='visualization') for obj in page_objs]
+        fetched_objs = [obj for page_objs in client.find(obj_type='visualization') for obj in page_objs]
         self.assertEqual(len(fetched_objs), 4)
 
         obj = fetched_objs[0]
@@ -117,7 +117,7 @@ class TestSavedObjects(unittest.TestCase):
                                status=200)
 
         client = SavedObjects(KIBANA_URL)
-        fetched_objs = [obj for page_objs in client.find(SAVED_OBJECTS_URL, obj_type='dashboard') for obj in page_objs]
+        fetched_objs = [obj for page_objs in client.find(obj_type='dashboard') for obj in page_objs]
         self.assertEqual(len(fetched_objs), 0)
 
     @httpretty.activate
@@ -139,10 +139,10 @@ class TestSavedObjects(unittest.TestCase):
 
         client = SavedObjects(KIBANA_URL)
         with self.assertLogs(logger, level='ERROR') as cm:
-            _ = [obj for page_objs in client.find(SAVED_OBJECTS_URL, obj_type='dashboard') for obj in page_objs]
+            _ = [obj for page_objs in client.find(obj_type='dashboard') for obj in page_objs]
             self.assertEqual(cm.output[0],
                              'ERROR:archimedes.clients.saved_objects:Impossible to retrieve objects at page 1, '
-                             'url http://example.com/api/saved_objects, An internal server error occurred')
+                             'url http://example.com/api/saved_objects/_find, An internal server error occurred')
 
     @httpretty.activate
     def test_fetch_objs_http_error(self):
@@ -157,7 +157,7 @@ class TestSavedObjects(unittest.TestCase):
 
         client = SavedObjects(KIBANA_URL)
         with self.assertRaises(requests.exceptions.HTTPError):
-            _ = [obj for page_objs in client.find(SAVED_OBJECTS_URL, obj_type='dashboard') for obj in page_objs]
+            _ = [obj for page_objs in client.find(obj_type='dashboard') for obj in page_objs]
 
     @httpretty.activate
     def test_fetch_objs_http_error_500(self):
@@ -184,11 +184,11 @@ class TestSavedObjects(unittest.TestCase):
 
         client = SavedObjects(KIBANA_URL)
         with self.assertLogs(logger) as cm:
-            _ = [obj for page_objs in client.find(SAVED_OBJECTS_URL, obj_type='dashboard') for obj in page_objs]
+            _ = [obj for page_objs in client.find(obj_type='dashboard') for obj in page_objs]
 
         self.assertEqual(cm.output[0],
                          'WARNING:archimedes.clients.saved_objects:Impossible to retrieve object at page 2, '
-                         'url http://example.com/api/saved_objects')
+                         'url http://example.com/api/saved_objects/_find')
 
     @httpretty.activate
     def test_get_object(self):
@@ -294,8 +294,9 @@ class TestSavedObjects(unittest.TestCase):
         """Test the method update_object"""
 
         obj_data = read_file('data/object_index-pattern')
-        obj_attr = "version"
-        obj_new_value = "2"
+        attributes = {
+            "version": "2"
+        }
 
         httpretty.register_uri(httpretty.PUT,
                                OBJECT_URL,
@@ -304,7 +305,7 @@ class TestSavedObjects(unittest.TestCase):
 
         client = SavedObjects(KIBANA_URL)
         with self.assertLogs(logger, level='INFO') as cm:
-            obj = client.update_object(OBJECT_TYPE, OBJECT_ID, obj_attr, obj_new_value)
+            obj = client.update_object(OBJECT_TYPE, OBJECT_ID, attributes)
             self.assertEqual(cm.output[0],
                              'INFO:archimedes.clients.saved_objects:'
                              'Object ' + OBJECT_TYPE + ' with id ' + OBJECT_ID + ' updated')
@@ -315,8 +316,9 @@ class TestSavedObjects(unittest.TestCase):
         """Test whether a warning is logged when the object is not found"""
 
         obj_data = read_file('data/object_index-pattern')
-        obj_attr = "version"
-        obj_new_value = "2"
+        attributes = {
+            "version": "2"
+        }
 
         httpretty.register_uri(httpretty.PUT,
                                OBJECT_URL,
@@ -325,7 +327,7 @@ class TestSavedObjects(unittest.TestCase):
 
         client = SavedObjects(KIBANA_URL)
         with self.assertLogs(logger, level='WARNING') as cm:
-            obj = client.update_object(OBJECT_TYPE, OBJECT_ID, obj_attr, obj_new_value)
+            obj = client.update_object(OBJECT_TYPE, OBJECT_ID, attributes)
             self.assertEqual(cm.output[0],
                              'WARNING:archimedes.clients.saved_objects:'
                              'No ' + OBJECT_TYPE + ' found with id: ' + OBJECT_ID)
@@ -336,8 +338,9 @@ class TestSavedObjects(unittest.TestCase):
         """Test whether a warning is logged when the object is not updated"""
 
         obj_data = read_file('data/object_index-pattern')
-        obj_attr = "version"
-        obj_new_value = "2"
+        attributes = {
+            "version": "2"
+        }
 
         httpretty.register_uri(httpretty.PUT,
                                OBJECT_URL,
@@ -346,10 +349,9 @@ class TestSavedObjects(unittest.TestCase):
 
         client = SavedObjects(KIBANA_URL)
         with self.assertLogs(logger, level='WARNING') as cm:
-            obj = client.update_object(OBJECT_TYPE, OBJECT_ID, obj_attr, obj_new_value)
+            obj = client.update_object(OBJECT_TYPE, OBJECT_ID, attributes)
             self.assertEqual(cm.output[0], 'WARNING:archimedes.clients.saved_objects:Impossible to update '
-                                           'attribute ' + obj_attr + ' with value ' + obj_new_value + ', '
-                                           'for ' + OBJECT_TYPE + ' with id ' + OBJECT_ID)
+                                           'the object ' + OBJECT_TYPE + ' with id ' + OBJECT_ID)
             self.assertIsNone(obj)
 
     @httpretty.activate
@@ -357,8 +359,9 @@ class TestSavedObjects(unittest.TestCase):
         """Test whether an exception is thrown when the HTTP error is not 404 or 400"""
 
         obj_data = read_file('data/object_index-pattern')
-        obj_attr = "version"
-        obj_new_value = "2"
+        attributes = {
+            "version": "2"
+        }
 
         httpretty.register_uri(httpretty.PUT,
                                OBJECT_URL,
@@ -367,7 +370,41 @@ class TestSavedObjects(unittest.TestCase):
 
         client = SavedObjects(KIBANA_URL)
         with self.assertRaises(requests.exceptions.HTTPError):
-            _ = client.update_object(OBJECT_TYPE, OBJECT_ID, obj_attr, obj_new_value)
+            _ = client.update_object(OBJECT_TYPE, OBJECT_ID, attributes)
+
+    @httpretty.activate
+    def test_create_object(self):
+        """Test the method create_object"""
+
+        obj_data = read_file('data/object_index-pattern')
+        attributes = json.loads(obj_data)['attributes']
+        httpretty.register_uri(httpretty.POST,
+                               OBJECT_URL,
+                               body=obj_data,
+                               status=200)
+
+        client = SavedObjects(KIBANA_URL)
+        with self.assertLogs(logger, level='INFO') as cm:
+            obj = client.create_object(OBJECT_TYPE, OBJECT_ID, attributes)
+            self.assertEqual(cm.output[0],
+                             'INFO:archimedes.clients.saved_objects:'
+                             'Object ' + OBJECT_TYPE + ' with id ' + OBJECT_ID + ' create')
+            self.assertDictEqual(obj, json.loads(obj_data))
+
+    @httpretty.activate
+    def test_create_object_http_error(self):
+        """Test whether an exception is thrown if create_object fails"""
+
+        obj_data = read_file('data/object_index-pattern')
+        attributes = json.loads(obj_data)['attributes']
+        httpretty.register_uri(httpretty.POST,
+                               OBJECT_URL,
+                               body=obj_data,
+                               status=500)
+
+        client = SavedObjects(KIBANA_URL)
+        with self.assertRaises(requests.exceptions.HTTPError):
+            _ = client.create_object(OBJECT_TYPE, OBJECT_ID, attributes)
 
 
 if __name__ == "__main__":
