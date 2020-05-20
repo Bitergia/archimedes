@@ -166,8 +166,9 @@ def get_params():
                         help='Search dashboards by title or ID', choices=['id', 'title'], default='id')
     parser.add_argument('--dashboards', dest='dashboards',
                         help='A dict with a set of dashboards title and id to import', default=None)
-    parser.add_argument('--import-all', action='store_true')
-    parser.add_argument('--export-all', action='store_true')
+    parser.add_argument('--import', dest='import_', action='store_true')
+    parser.add_argument('--export', dest='export_', action='store_true')
+    parser.add_argument('--all', action='store_true')
 
     args = parser.parse_args()
 
@@ -177,35 +178,49 @@ def get_params():
 def main():
     """Euclid helps Archimedes to import/export a set of dashboards. They can be passed as a
     JSON file with the following format `{"dashbord_title-1": "dashboard_id-1", "dashbord_title-2": "dashboard_id-2"}`.
-    If the file isn't defined the dashboards are initialized with the value of DASHBOARD_TITLE2ID.
+    If the file isn't defined the dashboards are initialized with the value of DASHBOARD_TITLE2ID. If the option --all
+    is defined, all Kibana objects in Archimedes/Kibiter are imported/exported.
 
     A common execution consists of running the export, and the export.
 
     Examples:
-    - Import all dashbaords from a local Archimedes repo to a Kibana instance
-        ./bin/utils http://admin:admin@localhost:5601 /home/dashboards --import-all --search-by title
-    - Export all dashboards from a Kibana instance to a local Archimedes repo
-        ./bin/utils http://admin:admin@localhost:5601 /home/dashboards --export-all --dashboards dashboards.json
+    - Import the dashboards from a local Archimedes repo to a Kibana instance
+        ./bin/utils http://admin:admin@localhost:5601 /home/dashboards --import --search-by title
+    - Import all Kibana objects from a local Archimedes repo to a Kibana instance
+        ./bin/utils http://admin:admin@localhost:5601 /home/dashboards --import --all
+    - Export the dashboards from a Kibana instance to a local Archimedes repo
+        ./bin/utils http://admin:admin@localhost:5601 /home/dashboards --export --dashboards dashboards.json
+    - Export all Kibana objects from a Kibana instance to a local Archimedes repo
+        ./bin/utils http://admin:admin@localhost:5601 /home/dashboards --export --all
     """
     args = get_params()
 
-    if (args.import_all and args.export_all) or (not args.import_all and not args.export_all):
-        print("One action is needed: select --import-all or --export-all")
+    if (args.import_ and args.export_) or (not args.import_ and not args.export_):
+        print("One action is needed: select --import or --export")
         return
 
     archimedes = Archimedes(args.url, args.root_path)
     search_by = args.search_by
-    if args.dashboards:
-        with open(args.dashboards, 'r') as f:
-            dashboards = json.loads(f.read())
+
+    if not args.all:
+        if args.dashboards:
+            with open(args.dashboards, 'r') as f:
+                dashboards = json.loads(f.read())
+        else:
+            dashboards = DASHBOARD_TITLE2ID
+
+        if args.import_:
+            import_batch(archimedes, dashboards, by=search_by, force=True, find=True)
+
+        if args.export_:
+            export_batch(archimedes, dashboards, by=search_by, force=True)
     else:
-        dashboards = DASHBOARD_TITLE2ID
-
-    if args.import_all:
-        import_batch(archimedes, dashboards, by=search_by, force=True, find=True)
-
-    if args.export_all:
-        export_batch(archimedes, dashboards, by=search_by, force=True)
+        if args.import_:
+            for obj in archimedes.inspect(local=True):
+                archimedes.import_from_disk(obj.type, obj.id, obj.title)
+        if args.export_:
+            for obj in archimedes.inspect(remote=True):
+                archimedes.export_to_disk(obj.type, obj.id, obj.title)
 
 
 if __name__ == "__main__":
