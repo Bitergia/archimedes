@@ -59,7 +59,8 @@ setup(name="archimedes",
       keywords="development repositories analytics",
       packages=[
           'archimedes',
-          'archimedes.clients'
+          'archimedes.clients',
+          'utils'
       ],
       python_requires='>=3.4',
       setup_requires=['wheel'],

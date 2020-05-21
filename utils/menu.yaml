@@ -1,0 +1,44 @@
+---
+project: Bitergia
+tabs:
+  - tab: Overview
+    dashboard-title: Overview
+    description: "Summary of basic metrics on all analyzed sources."
+  - tab: Git
+    sections:
+      - name: Overview
+        dashboard-id: Git
+      - name: Attraction/Retention
+        dashboard-title: Git Demographics
+      - name: Areas of Code
+        dashboard-title: Git Areas of Code
+      - name: Lifecycle
+        dashboard-title: Lifecycle
+  - tab: GitHub Issues
+    sections:
+      - name: Overview
+        dashboard-title: GitHub Issues
+      - name: Backlog
+        dashboard-title: GitHub Issues Backlog
+      - name: Timing
+        dashboard-title: GitHub Issues Timing
+      - name: Efficiency
+        dashboard-title: GitHub Issues Efficiency
+  - tab: GitHub PRs
+    sections:
+      - name: Overview
+        dashboard-title: GitHub Pull Requests
+      - name: Backlog
+        dashboard-title: GitHub Pull Requests Backlog
+      - name: Timing
+        dashboard-title: GitHub Pull Requests Timing
+      - name: Efficiency
+        dashboard-title: GitHub Pull Requests Efficiency
+  - tab: DockerHub
+    sections:
+      - name: Overview
+        dashboard-title: DockerHub
+  - tab: Data Status
+    dashboard-title: Data Status
+  - tab: About
+    dashboard-title: About
